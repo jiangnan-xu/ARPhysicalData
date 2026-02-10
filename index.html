@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Eisenhower Matrix (Confirm → Check → AR Placeholder)</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --pink:#f7d6d9;
+      --yellow:#f6e6a8;
+      --cream:#fbf7e9;
+      --border:#1f1f1f;
+      --text:#111;
+      --muted:#666;
+      --btn:#b9ff9e;
+      --btnDisabled:#d9d9d9;
+      --btnText:#0b0b0b;
+      --danger:#ff5a5a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text);}
+
+    .app{
+      height:100%;
+      padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+      padding-top: calc(14px + env(safe-area-inset-top));
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      max-width:420px;
+      margin:0 auto;
+    }
+    .view{display:none; height:100%;}
+    .view.active{display:flex; flex-direction:column; gap:12px;}
+
+    /* MATRIX */
+    .matrix{
+      flex:1;
+      border:1px solid var(--border);
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap:0;
+    }
+    .quad{
+      padding:10px;
+      font-size:12px;
+      line-height:1.2;
+      position:relative;
+      overflow:hidden;
+      border-right:1px solid rgba(0,0,0,.12);
+      border-bottom:1px solid rgba(0,0,0,.12);
+      cursor:pointer;
+    }
+    .quad:nth-child(2), .quad:nth-child(4){ border-right:none; }
+    .quad:nth-child(3), .quad:nth-child(4){ border-bottom:none; }
+
+    .quad.pink{ background: var(--pink); }
+    .quad.yellow{ background: var(--yellow); }
+    .quad.cream{ background: var(--cream); }
+
+    .quadTitle{ font-weight:600; margin-bottom:8px; }
+    .preview{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-top:4px;
+    }
+    .previewItem{
+      font-size:11px;
+      color: rgba(0,0,0,.75);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.45); }
+
+    .bottomBar{
+      display:flex;
+      justify-content:center;
+      padding-top: 6px;
+    }
+    .bigBtn{
+      width: 180px;
+      height: 34px;
+      border:none;
+      background: var(--btn);
+      color: var(--btnText);
+      font-weight:600;
+      cursor:pointer;
+    }
+    .bigBtn:disabled{
+      background: var(--btnDisabled);
+      color: rgba(0,0,0,.45);
+      cursor:not-allowed;
+    }
+    .tinyNote{
+      font-size:12px;
+      color: var(--muted);
+      text-align:center;
+      min-height: 16px;
+      line-height:1.25;
+    }
+
+    /* CATEGORY VIEW */
+    .catPanel{
+      flex:1;
+      border:1px solid var(--border);
+      display:flex;
+      flex-direction:column;
+      background: var(--pink);
+      padding: 12px;
+      position:relative;
+      overflow:hidden;
+    }
+    .catPanel.yellowBg{ background: var(--yellow); }
+    .catPanel.creamBg{ background: var(--cream); }
+
+    .catHeader{
+      font-size:22px;
+      font-weight:700;
+      line-height:1.05;
+      margin-bottom: 10px;
+    }
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+      flex:1;
+      padding-right:2px;
+    }
+
+    /* Planning row: swipe-to-delete + editable */
+    .swipeWrap{
+      position:relative;
+      overflow:hidden;
+    }
+    .deleteBg{
+      position:absolute;
+      inset:0;
+      background: var(--danger);
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      padding-right:12px;
+      color:#fff;
+      font-weight:700;
+      pointer-events:none;
+    }
+    .row{
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(0,0,0,.18);
+      padding: 8px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      transform: translateX(0px);
+      transition: transform .15s ease;
+      touch-action: pan-y;
+    }
+
+    .textBox{
+      flex:1;
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .textView{
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding: 2px 4px;
+    }
+    .editInput{
+      width:100%;
+      font-size:12px;
+      padding: 6px 6px;
+      border:1px solid rgba(0,0,0,.25);
+      background: rgba(255,255,255,.9);
+      outline:none;
+      display:none;
+    }
+
+    /* Check row: static text + toggle */
+    .rowCheck{
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(0,0,0,.18);
+      padding: 8px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .rowCheck.done .checkText{ text-decoration: line-through; color: rgba(0,0,0,.45); }
+    .checkText{
+      flex:1;
+      min-width:0;
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding: 2px 4px;
+    }
+
+    /* Switch (only in Check mode) */
+    .switch{
+      position:relative;
+      width:38px;
+      height:22px;
+      flex:0 0 auto;
+    }
+    .switch input{ display:none; }
+    .slider{
+      position:absolute; inset:0;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(0,0,0,.18);
+      border-radius:999px;
+      transition:.18s;
+    }
+    .slider:before{
+      content:"";
+      position:absolute;
+      width:16px; height:16px;
+      left:3px; top:2px;
+      background:#cfcfcf;
+      border-radius:50%;
+      transition:.18s;
+    }
+    .switch input:checked + .slider{
+      background: rgba(95,215,120,.55);
+    }
+    .switch input:checked + .slider:before{
+      transform: translateX(16px);
+      background:#fff;
+    }
+
+    /* Floating + (only in Planning mode) */
+    .fab{
+      position:absolute;
+      left:50%;
+      bottom: 64px;
+      transform: translateX(-50%);
+      width:56px;
+      height:56px;
+      border-radius:999px;
+      border:none;
+      background:#fff;
+      box-shadow: 0 6px 20px rgba(0,0,0,.18);
+      font-size:30px;
+      line-height:56px;
+      text-align:center;
+      cursor:pointer;
+    }
+    .fab:disabled{
+      opacity:.35;
+      cursor:not-allowed;
+    }
+
+    /* Back button */
+    .backBar{
+      display:flex;
+      justify-content:center;
+      padding-top: 6px;
+    }
+
+    /* AR placeholder overlay */
+    #arOverlay{
+      position:fixed;
+      inset:0;
+      background:#0b51ff;
+      z-index:9999;
+      display:none;
+      color:#fff;
+      padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+      padding-top: calc(18px + env(safe-area-inset-top));
+    }
+    #arOverlay.show{ display:flex; flex-direction:column; gap:12px; }
+    .arTitle{ font-size:20px; font-weight:800; }
+    .arHint{ font-size:13px; opacity:.9; line-height:1.3; }
+    .arSpacer{ flex:1; }
+    .arDone{
+      height:44px;
+      border:none;
+      background:#ffffff;
+      color:#0b51ff;
+      font-weight:800;
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- MATRIX VIEW -->
+    <section id="matrixView" class="view active">
+      <div class="matrix" id="matrixGrid">
+        <div class="quad pink" data-cat="IU">
+          <div class="quadTitle">Urgent,<br>Important</div>
+          <div class="preview" id="previewIU"></div>
+        </div>
+        <div class="quad pink" data-cat="IN">
+          <div class="quadTitle">Not Urgent,<br>Important</div>
+          <div class="preview" id="previewIN"></div>
+        </div>
+        <div class="quad yellow" data-cat="NU">
+          <div class="quadTitle">Urgent,<br>Not Important</div>
+          <div class="preview" id="previewNU"></div>
+        </div>
+        <div class="quad cream" data-cat="NN">
+          <div class="quadTitle">Not Urgent,<br>Not Important</div>
+          <div class="preview" id="previewNN"></div>
+        </div>
+      </div>
+
+      <div class="bottomBar">
+        <button id="mainBtn" class="bigBtn" disabled>Confirm</button>
+      </div>
+
+      <div class="tinyNote" id="mainNote"></div>
+    </section>
+
+    <!-- CATEGORY VIEW -->
+    <section id="catView" class="view">
+      <div id="catPanel" class="catPanel">
+        <div class="catHeader" id="catHeader">Urgent,<br>Important</div>
+        <div class="list" id="catList"></div>
+        <button id="fabAdd" class="fab" title="Add">+</button>
+      </div>
+
+      <div class="backBar">
+        <button id="backBtn" class="bigBtn">Back</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- AR Placeholder -->
+  <div id="arOverlay">
+    <div class="arTitle">AR Placeholder</div>
+    <div class="arHint">
+      This is a blue-screen placeholder for AR.<br>
+      Later: scan vase → show metal balls based on completion.
+    </div>
+    <div class="arSpacer"></div>
+    <button id="arDoneBtn" class="arDone">Done</button>
+  </div>
+
+<script>
+  /***********************
+   * Storage + Modes
+   ***********************/
+  const STORAGE_KEY = "eisen_matrix_v4_state";
+  const MODE_KEY    = "eisen_matrix_v4_mode"; // "plan" | "check"
+  const CLAIM_KEY   = "eisen_matrix_v4_daily_claim"; // { "YYYY-MM-DD": { claimedAt, snapshot } }
+
+  const MODE = {
+    PLAN: "plan",   // only add/edit/delete
+    CHECK:"check"   // only toggle done
+  };
+
+  const CATS = ["IU","IN","NU","NN"];
+  const CAT_META = {
+    IU: { title: "Urgent,<br>Important", bg: "pink" },
+    IN: { title: "Not Urgent,<br>Important", bg: "pink" },
+    NU: { title: "Urgent,<br>Not Important", bg: "yellow" },
+    NN: { title: "Not Urgent,<br>Not Important", bg: "cream" }
+  };
+
+  let state = loadState(); // { IU: Task[], ... } Task: {id,text,done}
+  let mode  = loadMode();  // plan/check
+  let currentCat = null;
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { IU:[], IN:[], NU:[], NN:[] };
+      const parsed = JSON.parse(raw);
+      for (const c of CATS) if (!Array.isArray(parsed[c])) parsed[c] = [];
+      for (const c of CATS){
+        parsed[c] = parsed[c].map(t => ({
+          id: t.id || cryptoId(),
+          text: typeof t.text === "string" ? t.text : "",
+          done: !!t.done
+        }));
+      }
+      return parsed;
+    }catch{
+      return { IU:[], IN:[], NU:[], NN:[] };
+    }
+  }
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function loadMode(){
+    const m = localStorage.getItem(MODE_KEY);
+    return (m === MODE.CHECK) ? MODE.CHECK : MODE.PLAN;
+  }
+  function saveMode(){
+    localStorage.setItem(MODE_KEY, mode);
+  }
+  function cryptoId(){
+    return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
+  }
+
+  /***********************
+   * Daily claim (only once)
+   ***********************/
+  function localDateKey(d = new Date()){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const da = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  }
+  function loadClaimMap(){
+    try { return JSON.parse(localStorage.getItem(CLAIM_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function saveClaimMap(map){
+    localStorage.setItem(CLAIM_KEY, JSON.stringify(map));
+  }
+  function hasClaimedToday(){
+    const day = localDateKey();
+    const map = loadClaimMap();
+    return !!map[day]?.claimedAt;
+  }
+  function claimToday(snapshot){
+    const day = localDateKey();
+    const map = loadClaimMap();
+    map[day] = { claimedAt: Date.now(), snapshot };
+    saveClaimMap(map);
+  }
+
+  /***********************
+   * Helpers
+   ***********************/
+  function allTasks(){ return CATS.flatMap(c => state[c]); }
+  function totalTasks(){ return allTasks().length; }
+  function completionRate(){
+    const t = allTasks();
+    if (!t.length) return 0;
+    const d = t.reduce((a,x)=>a+(x.done?1:0),0);
+    return Math.round((d/t.length)*100);
+  }
+
+  /***********************
+   * View switching
+   ***********************/
+  const matrixView = document.getElementById("matrixView");
+  const catView    = document.getElementById("catView");
+
+  const catHeader  = document.getElementById("catHeader");
+  const catList    = document.getElementById("catList");
+  const catPanel   = document.getElementById("catPanel");
+  const fabAdd     = document.getElementById("fabAdd");
+
+  const backBtn    = document.getElementById("backBtn");
+  const mainBtn    = document.getElementById("mainBtn");
+  const mainNote   = document.getElementById("mainNote");
+
+  function showMatrix(){
+    currentCat = null;
+    catView.classList.remove("active");
+    matrixView.classList.add("active");
+    renderMatrix();
+  }
+
+  function showCategory(cat){
+    currentCat = cat;
+    matrixView.classList.remove("active");
+    catView.classList.add("active");
+
+    catHeader.innerHTML = CAT_META[cat].title;
+    catPanel.classList.remove("yellowBg","creamBg");
+    if (CAT_META[cat].bg === "yellow") catPanel.classList.add("yellowBg");
+    if (CAT_META[cat].bg === "cream")  catPanel.classList.add("creamBg");
+
+    renderCategory(cat);
+  }
+
+  backBtn.addEventListener("click", showMatrix);
+
+  document.getElementById("matrixGrid").addEventListener("click", (e) => {
+    const quad = e.target.closest(".quad");
+    if (!quad) return;
+    showCategory(quad.dataset.cat);
+  });
+
+  /***********************
+   * Matrix render (mode-aware)
+   ***********************/
+  function renderMatrix(){
+    // previews: Plan/Check 都显示（最多 3 条）
+    for (const cat of CATS){
+      const box = document.getElementById("preview"+cat);
+      box.innerHTML = "";
+      const items = state[cat].slice(0,3);
+      for (const t of items){
+        const div = document.createElement("div");
+        div.className = "previewItem" + (t.done ? " done" : "");
+        div.textContent = "• " + (t.text || "(empty)");
+        box.appendChild(div);
+      }
+    }
+
+    if (mode === MODE.PLAN){
+      const canConfirm = totalTasks() > 0;
+      mainBtn.textContent = "Confirm";
+      mainBtn.disabled = !canConfirm;
+
+      if (!canConfirm){
+        mainNote.textContent = "Click a category to add todos. Confirm unlocks after you add at least 1.";
+      } else {
+        mainNote.textContent = "";
+      }
+    } else {
+      // CHECK mode: 不要求全完成才能 Check AR，只要有任务且今天没领过
+      const claimed = hasClaimedToday();
+      const hasTasks = totalTasks() > 0;
+      const canCheckAR = hasTasks && !claimed;
+
+      mainBtn.textContent = claimed ? "Checked today ✅" : "Check AR";
+      mainBtn.disabled = !canCheckAR;
+
+      if (!hasTasks){
+        mainNote.textContent = "No todos. Go back and add tasks first.";
+      } else if (claimed){
+        mainNote.textContent = "You already checked AR today. Come back tomorrow.";
+      } else {
+        mainNote.textContent = `Progress: ${completionRate()}% (you can Check AR anytime, but only once/day)`;
+      }
+    }
+  }
+
+  /***********************
+   * Category render (mode-aware)
+   ***********************/
+  function renderCategory(cat){
+    catList.innerHTML = "";
+
+    if (mode === MODE.PLAN){
+      fabAdd.style.display = "block";
+      fabAdd.disabled = state[cat].length >= 5;
+
+      for (const task of state[cat]){
+        const wrap = document.createElement("div");
+        wrap.className = "swipeWrap";
+
+        const delBg = document.createElement("div");
+        delBg.className = "deleteBg";
+        delBg.textContent = "Delete";
+        wrap.appendChild(delBg);
+
+        const row = document.createElement("div");
+        row.className = "row";
+        row.dataset.id = task.id;
+
+        const textBox = document.createElement("div");
+        textBox.className = "textBox";
+
+        const textView = document.createElement("div");
+        textView.className = "textView";
+        textView.textContent = task.text || "tap to edit";
+
+        const edit = document.createElement("input");
+        edit.className = "editInput";
+        edit.type = "text";
+        edit.value = task.text || "";
+
+        textView.addEventListener("click", () => {
+          textView.style.display = "none";
+          edit.style.display = "block";
+          edit.focus();
+          edit.setSelectionRange(edit.value.length, edit.value.length);
+        });
+
+        function commitEdit(){
+          const v = edit.value.trim();
+          task.text = v;
+          textView.textContent = v || "tap to edit";
+          edit.style.display = "none";
+          textView.style.display = "block";
+          persistAndRerender(cat);
+        }
+        edit.addEventListener("keydown", (e) => { if (e.key === "Enter") edit.blur(); });
+        edit.addEventListener("blur", commitEdit);
+
+        textBox.appendChild(textView);
+        textBox.appendChild(edit);
+
+        row.appendChild(textBox);
+        wrap.appendChild(row);
+        catList.appendChild(wrap);
+
+        attachSwipeToDelete(row, () => {
+          state[cat] = state[cat].filter(t => t.id !== task.id);
+          persistAndRerender(cat);
+        });
+      }
+    } else {
+      // CHECK mode: no add/edit/delete, only toggle
+      fabAdd.style.display = "none";
+
+      for (const task of state[cat]){
+        const row = document.createElement("div");
+        row.className = "rowCheck" + (task.done ? " done" : "");
+
+        const text = document.createElement("div");
+        text.className = "checkText";
+        text.textContent = task.text || "(empty)";
+
+        const sw = document.createElement("label");
+        sw.className = "switch";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!task.done;
+        cb.addEventListener("change", () => {
+          task.done = cb.checked;
+          saveState();
+          renderCategory(cat);
+          renderMatrix();
+        });
+        const slider = document.createElement("span");
+        slider.className = "slider";
+        sw.appendChild(cb);
+        sw.appendChild(slider);
+
+        row.appendChild(text);
+        row.appendChild(sw);
+        catList.appendChild(row);
+      }
+    }
+  }
+
+  fabAdd.addEventListener("click", () => {
+    if (mode !== MODE.PLAN) return;
+    if (!currentCat) return;
+    if (state[currentCat].length >= 5) return;
+
+    state[currentCat].push({ id: cryptoId(), text: "", done: false });
+    saveState();
+    renderCategory(currentCat);
+
+    requestAnimationFrame(() => {
+      const lastRow = catList.querySelector(".row:last-child");
+      if (!lastRow) return;
+      const tv = lastRow.querySelector(".textView");
+      tv && tv.click();
+    });
+
+    renderMatrix();
+  });
+
+  function persistAndRerender(cat){
+    saveState();
+    renderCategory(cat);
+    renderMatrix();
+  }
+
+  /***********************
+   * Swipe to delete (PLAN only)
+   ***********************/
+  function attachSwipeToDelete(rowEl, onDelete){
+    let startX = 0;
+    let currentX = 0;
+    let dragging = false;
+
+    rowEl.addEventListener("pointerdown", (e) => {
+      if (mode !== MODE.PLAN) return;
+      if (e.target.closest(".editInput")) return;
+      dragging = true;
+      startX = e.clientX;
+      currentX = 0;
+      rowEl.style.transition = "none";
+      rowEl.setPointerCapture(e.pointerId);
+    });
+
+    rowEl.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      currentX = Math.max(-120, Math.min(0, dx));
+      rowEl.style.transform = `translateX(${currentX}px)`;
+    });
+
+    rowEl.addEventListener("pointerup", () => finishSwipe());
+    rowEl.addEventListener("pointercancel", () => finishSwipe());
+
+    function finishSwipe(){
+      if (!dragging) return;
+      dragging = false;
+      rowEl.style.transition = "transform .15s ease";
+
+      if (currentX < -80){
+        rowEl.style.transform = "translateX(-120px)";
+        setTimeout(() => onDelete(), 120);
+      } else {
+        rowEl.style.transform = "translateX(0px)";
+      }
+    }
+  }
+
+  /***********************
+   * Main button actions:
+   * PLAN: Confirm -> CHECK (locks list; resets all done to false)
+   * CHECK: Check AR -> confirm message -> blue screen (once/day)
+   ***********************/
+  const arOverlay = document.getElementById("arOverlay");
+  const arDoneBtn = document.getElementById("arDoneBtn");
+
+  mainBtn.addEventListener("click", () => {
+    if (mode === MODE.PLAN){
+      if (totalTasks() === 0) return;
+
+      // Confirm: enter CHECK mode and reset done flags
+      for (const c of CATS) for (const t of state[c]) t.done = false;
+
+      mode = MODE.CHECK;
+      saveMode();
+      saveState();
+      showMatrix();
+      return;
+    }
+
+    // CHECK mode: allow Check AR anytime (if has tasks), but only once/day
+    if (hasClaimedToday()) return;
+    if (totalTasks() === 0) return;
+
+    const ok = confirm(
+      "Check AR can only be triggered once per day.\n" +
+      "Please confirm you have toggled all completed tasks.\n\n" +
+      `Current progress: ${completionRate()}%.\nProceed?`
+    );
+    if (!ok) return;
+
+    arOverlay.classList.add("show");
+  });
+
+  arDoneBtn.addEventListener("click", () => {
+    // Claim today + clear everything + back to PLAN (per your flow)
+    const snapshot = {
+      day: localDateKey(),
+      total: totalTasks(),
+      completion: completionRate(),
+      byCat: {
+        IU: state.IU.length, IN: state.IN.length, NU: state.NU.length, NN: state.NN.length
+      }
+    };
+    claimToday(snapshot);
+
+    state = { IU:[], IN:[], NU:[], NN:[] };
+    mode = MODE.PLAN;
+    saveMode();
+    saveState();
+
+    arOverlay.classList.remove("show");
+    showMatrix();
+  });
+
+  /***********************
+   * Initial render
+   ***********************/
+  showMatrix();
+</script>
+</body>
+</html>
