@@ -41,6 +41,32 @@
     .view{display:none; height:100%;}
     .view.active{display:flex; flex-direction:column; gap:12px;}
 
+    /* Top bars (text controls) */
+    .topBar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      min-height: 28px;
+    }
+    .textBtn{
+      appearance:none;
+      border:none;
+      background:transparent;
+      padding:0;
+      font: inherit;
+      cursor:pointer;
+      color: var(--text);
+    }
+    .textBtn:disabled{ opacity:.4; cursor:not-allowed; }
+    .textBtn.back{
+      font-weight:700;
+      color: rgba(0,0,0,.85);
+    }
+    .textBtn.danger{
+      font-weight:800;
+      color: var(--danger);
+    }
+
     /* MATRIX */
     .matrix{
       flex:1;
@@ -86,23 +112,27 @@
     .bottomBar{
       display:flex;
       justify-content:center;
-      gap:12px;
       padding-top: 6px;
     }
-    .bigBtn{
-      width: 180px;
-      height: 34px;
+
+    /* Bigger primary buttons (Confirm / Settle / View AR) */
+    .primaryBtn{
+      width: min(360px, 100%);
+      height: 52px;
       border:none;
+      border-radius:14px;
       background: var(--btn);
       color: var(--btnText);
-      font-weight:600;
+      font-weight:800;
+      font-size:16px;
       cursor:pointer;
     }
-    .bigBtn:disabled{
+    .primaryBtn:disabled{
       background: var(--btnDisabled);
       color: rgba(0,0,0,.45);
       cursor:not-allowed;
     }
+
     .tinyNote{
       font-size:12px;
       color: var(--muted);
@@ -142,10 +172,7 @@
     }
 
     /* Planning row: swipe-to-delete + editable */
-    .swipeWrap{
-      position:relative;
-      overflow:hidden;
-    }
+    .swipeWrap{ position:relative; overflow:hidden; border-radius:10px; }
     .deleteBg{
       position:absolute;
       inset:0;
@@ -169,6 +196,7 @@
       transform: translateX(0px);
       transition: transform .15s ease;
       touch-action: pan-y;
+      border-radius:10px;
     }
 
     .textBox{
@@ -193,9 +221,10 @@
       background: rgba(255,255,255,.9);
       outline:none;
       display:none;
+      border-radius:8px;
     }
 
-    /* Check row base (used in settlement + read-only category view) */
+    /* Read-only row (category in CHECK + settlement rows base) */
     .rowCheck{
       background: rgba(255,255,255,.55);
       border: 1px solid rgba(0,0,0,.18);
@@ -204,6 +233,7 @@
       align-items:center;
       justify-content:space-between;
       gap:10px;
+      border-radius:10px;
     }
     .rowCheck.done .checkText{ text-decoration: line-through; color: rgba(0,0,0,.45); }
     .checkText{
@@ -216,7 +246,7 @@
       padding: 2px 4px;
     }
 
-    /* Switch (only in Settlement screen) */
+    /* Switch (Settlement only) */
     .switch{
       position:relative;
       width:38px;
@@ -248,7 +278,7 @@
       background:#fff;
     }
 
-    /* Floating + (only in Planning mode) */
+    /* Floating + (Planning only) */
     .fab{
       position:absolute;
       left:50%;
@@ -265,20 +295,9 @@
       text-align:center;
       cursor:pointer;
     }
-    .fab:disabled{
-      opacity:.35;
-      cursor:not-allowed;
-    }
+    .fab:disabled{ opacity:.35; cursor:not-allowed; }
 
-    /* Back button row */
-    .backBar{
-      display:flex;
-      justify-content:center;
-      padding-top: 6px;
-      gap:12px;
-    }
-
-    /* SETTLEMENT VIEW */
+    /* SETTLEMENT */
     .settlePanel{
       flex:1;
       border:1px solid var(--border);
@@ -287,6 +306,7 @@
       display:flex;
       flex-direction:column;
       overflow:hidden;
+      border-radius:10px;
     }
     .settleHeader{
       font-size:20px;
@@ -325,6 +345,15 @@
       inset:0;
       z-index:0;
     }
+    /* Force full screen canvas */
+    #arScene{
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+    }
+    #arScene canvas{ width:100% !important; height:100% !important; }
+
     #arHud{
       position:relative;
       z-index:1;
@@ -332,6 +361,7 @@
       flex-direction:column;
       gap:12px;
       height:100%;
+      pointer-events:none;
     }
     .arTitle{ font-size:20px; font-weight:800; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
     .arHint{ font-size:13px; opacity:.95; line-height:1.3; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
@@ -344,6 +374,7 @@
       font-weight:800;
       cursor:pointer;
       border-radius:12px;
+      pointer-events:auto;
     }
   </style>
 </head>
@@ -353,6 +384,11 @@
 
     <!-- MATRIX VIEW -->
     <section id="matrixView" class="view active">
+      <div class="topBar">
+        <div></div>
+        <button id="newRoundBtn" class="textBtn danger">New Round</button>
+      </div>
+
       <div class="matrix" id="matrixGrid">
         <div class="quad pink" data-cat="IU">
           <div class="quadTitle">Urgent,<br>Important</div>
@@ -373,8 +409,7 @@
       </div>
 
       <div class="bottomBar">
-        <button id="mainBtn" class="bigBtn" disabled>Confirm</button>
-        <button id="newRoundBtn" class="bigBtn">New Round</button>
+        <button id="mainBtn" class="primaryBtn" disabled>Confirm</button>
       </div>
 
       <div class="tinyNote" id="mainNote"></div>
@@ -382,30 +417,33 @@
 
     <!-- CATEGORY VIEW -->
     <section id="catView" class="view">
+      <div class="topBar">
+        <button id="backBtn" class="textBtn back">← Back</button>
+        <div></div>
+      </div>
+
       <div id="catPanel" class="catPanel">
         <div class="catHeader" id="catHeader">Urgent,<br>Important</div>
         <div class="list" id="catList"></div>
         <button id="fabAdd" class="fab" title="Add">+</button>
       </div>
-
-      <div class="backBar">
-        <button id="backBtn" class="bigBtn">Back</button>
-      </div>
     </section>
 
     <!-- SETTLEMENT VIEW -->
     <section id="settleView" class="view">
+      <div class="topBar">
+        <button id="settleBackBtn" class="textBtn back">← Back</button>
+        <div></div>
+      </div>
+
       <div class="settlePanel">
         <div class="settleHeader">Settlement</div>
-        <div class="settleSub" id="settleNote">
-          Mark what you finished. Finalizing opens AR and can only be done once per round.
-        </div>
+        <div class="settleSub" id="settleNote">Mark done → AR.</div>
         <div class="list" id="settleList"></div>
       </div>
 
-      <div class="backBar">
-        <button id="settleBackBtn" class="bigBtn">Back</button>
-        <button id="settleGoBtn" class="bigBtn">View AR</button>
+      <div class="bottomBar">
+        <button id="settleGoBtn" class="primaryBtn">View AR</button>
       </div>
     </section>
 
@@ -431,11 +469,8 @@
     </div>
 
     <div id="arHud">
-      <div class="arTitle">AR View</div>
-      <div class="arHint" id="arHint">
-        Point your camera at the target texture.<br>
-        Tip: matte surface + good light improves tracking.
-      </div>
+      <div class="arTitle">AR</div>
+      <div class="arHint" id="arHint">Point at target.</div>
       <div class="arSpacer"></div>
       <button id="arDoneBtn" class="arDone">Done</button>
     </div>
@@ -446,14 +481,10 @@
    * Storage + Modes
    ***********************/
   const STORAGE_KEY = "eisen_matrix_v4_state";
-  const MODE_KEY    = "eisen_matrix_v4_mode"; // "plan" | "check"
+  const MODE_KEY    = "eisen_matrix_v4_mode";
   const ROUND_KEY   = "eisen_matrix_v4_round"; // { id, settledAt, snapshot }
 
-  const MODE = {
-    PLAN: "plan",   // only add/edit/delete
-    CHECK:"check"   // read-only; settlement required to mark done
-  };
-
+  const MODE = { PLAN:"plan", CHECK:"check" };
   const MAX_PER_CAT = 3;
 
   const CATS = ["IU","IN","NU","NN"];
@@ -464,9 +495,9 @@
     NN: { title: "Not Urgent,<br>Not Important", bg: "cream" }
   };
 
-  let state = loadState(); // { IU: Task[], ... } Task: {id,text,done}
-  let mode  = loadMode();  // plan/check
-  let round = loadRound(); // {id, settledAt|null, snapshot|null}
+  let state = loadState();
+  let mode  = loadMode();
+  let round = loadRound();
   let currentCat = null;
 
   function cryptoId(){
@@ -491,18 +522,14 @@
       return { IU:[], IN:[], NU:[], NN:[] };
     }
   }
-  function saveState(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
   function loadMode(){
     const m = localStorage.getItem(MODE_KEY);
     return (m === MODE.CHECK) ? MODE.CHECK : MODE.PLAN;
   }
-  function saveMode(){
-    localStorage.setItem(MODE_KEY, mode);
-  }
+  function saveMode(){ localStorage.setItem(MODE_KEY, mode); }
 
-  // Round storage (once per round)
   function loadRound(){
     try{
       const raw = localStorage.getItem(ROUND_KEY);
@@ -522,9 +549,7 @@
     if (!round) localStorage.removeItem(ROUND_KEY);
     else localStorage.setItem(ROUND_KEY, JSON.stringify(round));
   }
-  function isRoundSettled(){
-    return !!round?.settledAt;
-  }
+  function isRoundSettled(){ return !!round?.settledAt; }
   function startRound(){
     round = { id: cryptoId(), settledAt: null, snapshot: null };
     saveRound();
@@ -535,11 +560,8 @@
     round.snapshot = snapshot || null;
     saveRound();
   }
-  function clearRound(){
-    round = null;
-    saveRound();
-  }
-  // safety: if user reloads in CHECK mode but round missing, recreate it
+  function clearRound(){ round = null; saveRound(); }
+
   if (mode === MODE.CHECK && !round) startRound();
 
   /***********************
@@ -547,12 +569,6 @@
    ***********************/
   function allTasks(){ return CATS.flatMap(c => state[c]); }
   function totalTasks(){ return allTasks().length; }
-  function completionRate(){
-    const t = allTasks();
-    if (!t.length) return 0;
-    const d = t.reduce((a,x)=>a+(x.done?1:0),0);
-    return Math.round((d/t.length)*100);
-  }
 
   /***********************
    * View switching
@@ -615,7 +631,7 @@
   });
 
   /***********************
-   * Matrix render (mode-aware)
+   * Matrix render
    ***********************/
   function renderMatrix(){
     for (const cat of CATS){
@@ -636,12 +652,7 @@
       const canConfirm = totalTasks() > 0;
       mainBtn.textContent = "Confirm";
       mainBtn.disabled = !canConfirm;
-
-      if (!canConfirm){
-        mainNote.textContent = "Click a category to add todos. Confirm unlocks after you add at least 1.";
-      } else {
-        mainNote.textContent = `Max ${MAX_PER_CAT} items per category.`;
-      }
+      mainNote.textContent = canConfirm ? `Max ${MAX_PER_CAT}/cat.` : "Add 1+ todo.";
     } else {
       newRoundBtn.style.display = "inline-block";
 
@@ -651,18 +662,14 @@
       mainBtn.textContent = settled ? "Settled ✅" : "Settle";
       mainBtn.disabled = !hasTasks || settled;
 
-      if (!hasTasks){
-        mainNote.textContent = "No todos. Go back and add tasks first.";
-      } else if (settled){
-        mainNote.textContent = "This round is already settled. Start a new round to use AR again.";
-      } else {
-        mainNote.textContent = "Tap Settle to mark what you finished (once per round), then view AR.";
-      }
+      if (!hasTasks) mainNote.textContent = "No todos.";
+      else if (settled) mainNote.textContent = "Settled. New round to retry.";
+      else mainNote.textContent = "Settle once → AR.";
     }
   }
 
   /***********************
-   * Category render (mode-aware)
+   * Category render
    ***********************/
   function renderCategory(cat){
     catList.innerHTML = "";
@@ -727,7 +734,6 @@
         });
       }
     } else {
-      // CHECK mode is read-only now (no toggles here)
       fabAdd.style.display = "none";
       for (const task of state[cat]){
         const row = document.createElement("div");
@@ -768,17 +774,14 @@
   }
 
   /***********************
-   * Settlement render (one-time finalize)
+   * Settlement render
    ***********************/
   function renderSettlement(){
     settleList.innerHTML = "";
 
     const settled = isRoundSettled();
     settleGoBtn.disabled = settled || totalTasks() === 0;
-
-    settleNote.textContent = settled
-      ? "This round is already settled. Start a new round to settle again."
-      : "Mark what you finished. Finalizing opens AR and can only be done once per round.";
+    settleNote.textContent = settled ? "Already settled." : "Mark done → AR.";
 
     for (const cat of CATS){
       const tasks = state[cat];
@@ -820,11 +823,6 @@
         row.appendChild(sw);
         settleList.appendChild(row);
       }
-    }
-
-    if (!settled && totalTasks() > 0){
-      const pct = completionRate();
-      settleNote.textContent = `Mark what you finished. Selected: ${pct}%. Finalize to open AR (once/round).`;
     }
   }
 
@@ -882,14 +880,22 @@
 
   async function startAR(){
     if (!arScene) return;
+    try { arScene.play && arScene.play(); } catch {}
+
     const startNow = async () => {
       const sys = arScene.systems && arScene.systems["mindar-image-system"];
-      if (!sys) return;
-      try { await sys.start(); }
-      catch {
-        arHint.textContent = "Camera could not start. Use HTTPS (or localhost) and allow camera access.";
+      if (!sys) { arHint.textContent = "AR init failed."; return; }
+      try {
+        arHint.textContent = "Starting…";
+        await sys.start();
+        arHint.textContent = "Point at target.";
+        try { arScene.resize && arScene.resize(); } catch {}
+      } catch (e) {
+        arHint.textContent = "No camera. Use HTTPS + allow.";
+        console.error(e);
       }
     };
+
     if (arScene.hasLoaded) startNow();
     else arScene.addEventListener("loaded", startNow, { once:true });
   }
@@ -902,55 +908,36 @@
   }
 
   if (arTarget0){
-    arTarget0.addEventListener("targetFound", () => {
-      arHint.textContent = "Target found ✅ Tracking…";
-    });
-    arTarget0.addEventListener("targetLost", () => {
-      arHint.textContent = "Target lost. Point at the target texture again.";
-    });
+    arTarget0.addEventListener("targetFound", () => { arHint.textContent = "Found ✅"; });
+    arTarget0.addEventListener("targetLost",  () => { arHint.textContent = "Point at target."; });
   }
 
   /***********************
    * Main button actions
-   * PLAN: Confirm -> CHECK (locks list; resets all done to false; starts round)
-   * CHECK: Settle -> Settlement screen (Finalize once/round) -> View AR
    ***********************/
   mainBtn.addEventListener("click", () => {
     if (mode === MODE.PLAN){
       if (totalTasks() === 0) return;
 
-      // Confirm: enter CHECK mode and reset done flags, start a round
       for (const c of CATS) for (const t of state[c]) t.done = false;
 
       mode = MODE.CHECK;
-      startRound();          // ✅ new round starts here
+      startRound();
       saveMode();
       saveState();
       showMatrix();
       return;
     }
 
-    // CHECK: go to settlement screen
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
-    const ok = confirm(
-      "You will mark completed tasks in a one-time Settlement.\n" +
-      "Finalizing Settlement can only be done once per round.\n\n" +
-      "Continue to Settlement?"
-    );
-    if (!ok) return;
-
+    if (!confirm("Settlement?")) return;
     showSettlement();
   });
 
-  // New Round: clear all and return to planning
   newRoundBtn.addEventListener("click", () => {
-    const ok = confirm(
-      "Start a new round?\n\n" +
-      "This will clear all current todos and return to Planning."
-    );
-    if (!ok) return;
+    if (!confirm("Clear + restart?")) return;
 
     try { stopAR(); } catch {}
     try { arOverlay.classList.remove("show"); } catch {}
@@ -959,36 +946,22 @@
     mode = MODE.PLAN;
     saveMode();
     saveState();
-    clearRound(); // ✅ reset round gating
-
+    clearRound();
     showMatrix();
   });
 
-  // Finalize settlement -> mark round settled -> open AR
   settleGoBtn.addEventListener("click", () => {
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
-    const ok = confirm(
-      "Finalize Settlement for this round and open AR?\n" +
-      "You won't be able to settle again in this round."
-    );
-    if (!ok) return;
+    if (!confirm("Finalize + AR?")) return;
 
-    const snapshot = {
-      total: totalTasks(),
-      completion: completionRate(),
-      byCat: {
-        IU: state.IU.length, IN: state.IN.length, NU: state.NU.length, NN: state.NN.length
-      }
-    };
-    settleRound(snapshot);
+    settleRound({ total: totalTasks() });
 
     arOverlay.classList.add("show");
     startAR();
   });
 
-  // AR Done -> clear all -> back to PLAN (new round can start)
   arDoneBtn.addEventListener("click", () => {
     stopAR();
 
@@ -996,7 +969,7 @@
     mode = MODE.PLAN;
     saveMode();
     saveState();
-    clearRound(); // ✅ reset round gating
+    clearRound();
 
     arOverlay.classList.remove("show");
     showMatrix();
