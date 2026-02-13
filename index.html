@@ -398,7 +398,7 @@
       <div class="settlePanel">
         <div class="settleHeader">Settlement</div>
         <div class="settleSub" id="settleNote">
-          Mark what you finished. Finalizing opens AR and can only be done once per day.
+          Mark what you finished. Finalizing opens AR and can only be done once per round.
         </div>
         <div class="list" id="settleList"></div>
       </div>
@@ -447,7 +447,7 @@
    ***********************/
   const STORAGE_KEY = "eisen_matrix_v4_state";
   const MODE_KEY    = "eisen_matrix_v4_mode"; // "plan" | "check"
-  const CLAIM_KEY   = "eisen_matrix_v4_daily_claim"; // { "YYYY-MM-DD": { claimedAt, snapshot } }
+  const ROUND_KEY   = "eisen_matrix_v4_round"; // { id, settledAt, snapshot }
 
   const MODE = {
     PLAN: "plan",   // only add/edit/delete
@@ -466,7 +466,12 @@
 
   let state = loadState(); // { IU: Task[], ... } Task: {id,text,done}
   let mode  = loadMode();  // plan/check
+  let round = loadRound(); // {id, settledAt|null, snapshot|null}
   let currentCat = null;
+
+  function cryptoId(){
+    return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
+  }
 
   function loadState(){
     try{
@@ -496,37 +501,46 @@
   function saveMode(){
     localStorage.setItem(MODE_KEY, mode);
   }
-  function cryptoId(){
-    return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
-  }
 
-  /***********************
-   * Daily claim (only once)
-   ***********************/
-  function localDateKey(d = new Date()){
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const da = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${da}`;
+  // Round storage (once per round)
+  function loadRound(){
+    try{
+      const raw = localStorage.getItem(ROUND_KEY);
+      if (!raw) return null;
+      const r = JSON.parse(raw);
+      if (!r || typeof r.id !== "string") return null;
+      return {
+        id: r.id,
+        settledAt: (typeof r.settledAt === "number") ? r.settledAt : null,
+        snapshot: r.snapshot || null
+      };
+    }catch{
+      return null;
+    }
   }
-  function loadClaimMap(){
-    try { return JSON.parse(localStorage.getItem(CLAIM_KEY) || "{}"); }
-    catch { return {}; }
+  function saveRound(){
+    if (!round) localStorage.removeItem(ROUND_KEY);
+    else localStorage.setItem(ROUND_KEY, JSON.stringify(round));
   }
-  function saveClaimMap(map){
-    localStorage.setItem(CLAIM_KEY, JSON.stringify(map));
+  function isRoundSettled(){
+    return !!round?.settledAt;
   }
-  function hasClaimedToday(){
-    const day = localDateKey();
-    const map = loadClaimMap();
-    return !!map[day]?.claimedAt;
+  function startRound(){
+    round = { id: cryptoId(), settledAt: null, snapshot: null };
+    saveRound();
   }
-  function claimToday(snapshot){
-    const day = localDateKey();
-    const map = loadClaimMap();
-    map[day] = { claimedAt: Date.now(), snapshot };
-    saveClaimMap(map);
+  function settleRound(snapshot){
+    if (!round) startRound();
+    round.settledAt = Date.now();
+    round.snapshot = snapshot || null;
+    saveRound();
   }
+  function clearRound(){
+    round = null;
+    saveRound();
+  }
+  // safety: if user reloads in CHECK mode but round missing, recreate it
+  if (mode === MODE.CHECK && !round) startRound();
 
   /***********************
    * Helpers
@@ -631,18 +645,18 @@
     } else {
       newRoundBtn.style.display = "inline-block";
 
-      const claimed = hasClaimedToday();
+      const settled = isRoundSettled();
       const hasTasks = totalTasks() > 0;
 
-      mainBtn.textContent = claimed ? "Settled today ✅" : "Settle";
-      mainBtn.disabled = !hasTasks || claimed;
+      mainBtn.textContent = settled ? "Settled ✅" : "Settle";
+      mainBtn.disabled = !hasTasks || settled;
 
       if (!hasTasks){
         mainNote.textContent = "No todos. Go back and add tasks first.";
-      } else if (claimed){
-        mainNote.textContent = "You already finalized settlement today. Come back tomorrow.";
+      } else if (settled){
+        mainNote.textContent = "This round is already settled. Start a new round to use AR again.";
       } else {
-        mainNote.textContent = "Tap Settle to mark what you finished (once per day), then view AR.";
+        mainNote.textContent = "Tap Settle to mark what you finished (once per round), then view AR.";
       }
     }
   }
@@ -759,12 +773,12 @@
   function renderSettlement(){
     settleList.innerHTML = "";
 
-    const claimed = hasClaimedToday();
-    settleGoBtn.disabled = claimed || totalTasks() === 0;
+    const settled = isRoundSettled();
+    settleGoBtn.disabled = settled || totalTasks() === 0;
 
-    settleNote.textContent = claimed
-      ? "You already finalized settlement today. Come back tomorrow."
-      : `Mark what you finished. Finalizing opens AR and can only be done once per day.`;
+    settleNote.textContent = settled
+      ? "This round is already settled. Start a new round to settle again."
+      : "Mark what you finished. Finalizing opens AR and can only be done once per round.";
 
     for (const cat of CATS){
       const tasks = state[cat];
@@ -788,7 +802,7 @@
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!task.done;
-        cb.disabled = claimed;
+        cb.disabled = settled;
 
         cb.addEventListener("change", () => {
           task.done = cb.checked;
@@ -808,9 +822,9 @@
       }
     }
 
-    if (!claimed && totalTasks() > 0){
+    if (!settled && totalTasks() > 0){
       const pct = completionRate();
-      settleNote.textContent = `Mark what you finished. Selected: ${pct}%. Finalize to open AR (once/day).`;
+      settleNote.textContent = `Mark what you finished. Selected: ${pct}%. Finalize to open AR (once/round).`;
     }
   }
 
@@ -898,17 +912,18 @@
 
   /***********************
    * Main button actions
-   * PLAN: Confirm -> CHECK (locks list; resets all done to false)
-   * CHECK: Settle -> Settlement screen (Finalize once/day) -> View AR
+   * PLAN: Confirm -> CHECK (locks list; resets all done to false; starts round)
+   * CHECK: Settle -> Settlement screen (Finalize once/round) -> View AR
    ***********************/
   mainBtn.addEventListener("click", () => {
     if (mode === MODE.PLAN){
       if (totalTasks() === 0) return;
 
-      // Confirm: enter CHECK mode and reset done flags
+      // Confirm: enter CHECK mode and reset done flags, start a round
       for (const c of CATS) for (const t of state[c]) t.done = false;
 
       mode = MODE.CHECK;
+      startRound();          // ✅ new round starts here
       saveMode();
       saveState();
       showMatrix();
@@ -916,12 +931,12 @@
     }
 
     // CHECK: go to settlement screen
-    if (hasClaimedToday()) return;
+    if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
     const ok = confirm(
       "You will mark completed tasks in a one-time Settlement.\n" +
-      "Finalizing Settlement can only be done once per day.\n\n" +
+      "Finalizing Settlement can only be done once per round.\n\n" +
       "Continue to Settlement?"
     );
     if (!ok) return;
@@ -944,35 +959,36 @@
     mode = MODE.PLAN;
     saveMode();
     saveState();
+    clearRound(); // ✅ reset round gating
+
     showMatrix();
   });
 
-  // Finalize settlement -> claim today -> open AR
+  // Finalize settlement -> mark round settled -> open AR
   settleGoBtn.addEventListener("click", () => {
-    if (hasClaimedToday()) return;
+    if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
     const ok = confirm(
-      "Finalize Settlement for today and open AR?\n" +
-      "You won't be able to settle again today."
+      "Finalize Settlement for this round and open AR?\n" +
+      "You won't be able to settle again in this round."
     );
     if (!ok) return;
 
     const snapshot = {
-      day: localDateKey(),
       total: totalTasks(),
       completion: completionRate(),
       byCat: {
         IU: state.IU.length, IN: state.IN.length, NU: state.NU.length, NN: state.NN.length
       }
     };
-    claimToday(snapshot);
+    settleRound(snapshot);
 
     arOverlay.classList.add("show");
     startAR();
   });
 
-  // AR Done -> clear all -> back to PLAN
+  // AR Done -> clear all -> back to PLAN (new round can start)
   arDoneBtn.addEventListener("click", () => {
     stopAR();
 
@@ -980,6 +996,7 @@
     mode = MODE.PLAN;
     saveMode();
     saveState();
+    clearRound(); // ✅ reset round gating
 
     arOverlay.classList.remove("show");
     showMatrix();
