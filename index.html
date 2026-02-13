@@ -86,6 +86,7 @@
     .bottomBar{
       display:flex;
       justify-content:center;
+      gap:12px;
       padding-top: 6px;
     }
     .bigBtn{
@@ -373,6 +374,7 @@
 
       <div class="bottomBar">
         <button id="mainBtn" class="bigBtn" disabled>Confirm</button>
+        <button id="newRoundBtn" class="bigBtn">New Round</button>
       </div>
 
       <div class="tinyNote" id="mainNote"></div>
@@ -452,7 +454,7 @@
     CHECK:"check"   // read-only; settlement required to mark done
   };
 
-  const MAX_PER_CAT = 3; // ✅ changed from 5 to 3
+  const MAX_PER_CAT = 3;
 
   const CATS = ["IU","IN","NU","NN"];
   const CAT_META = {
@@ -477,7 +479,7 @@
           id: t.id || cryptoId(),
           text: typeof t.text === "string" ? t.text : "",
           done: !!t.done
-        })).slice(0, MAX_PER_CAT); // ✅ enforce max 3 on load
+        })).slice(0, MAX_PER_CAT);
       }
       return parsed;
     }catch{
@@ -553,6 +555,7 @@
   const backBtn    = document.getElementById("backBtn");
   const mainBtn    = document.getElementById("mainBtn");
   const mainNote   = document.getElementById("mainNote");
+  const newRoundBtn= document.getElementById("newRoundBtn");
 
   const settleList = document.getElementById("settleList");
   const settleNote = document.getElementById("settleNote");
@@ -614,6 +617,8 @@
     }
 
     if (mode === MODE.PLAN){
+      newRoundBtn.style.display = "none";
+
       const canConfirm = totalTasks() > 0;
       mainBtn.textContent = "Confirm";
       mainBtn.disabled = !canConfirm;
@@ -624,6 +629,8 @@
         mainNote.textContent = `Max ${MAX_PER_CAT} items per category.`;
       }
     } else {
+      newRoundBtn.style.display = "inline-block";
+
       const claimed = hasClaimedToday();
       const hasTasks = totalTasks() > 0;
 
@@ -635,10 +642,7 @@
       } else if (claimed){
         mainNote.textContent = "You already finalized settlement today. Come back tomorrow.";
       } else {
-        const picked = completionRate();
-        mainNote.textContent = picked > 0
-          ? `Ready to settle. Currently selected: ${picked}% (you can adjust in Settlement).`
-          : "Ready to settle. Tap Settle to mark what you finished (once per day), then view AR.";
+        mainNote.textContent = "Tap Settle to mark what you finished (once per day), then view AR.";
       }
     }
   }
@@ -651,7 +655,7 @@
 
     if (mode === MODE.PLAN){
       fabAdd.style.display = "block";
-      fabAdd.disabled = state[cat].length >= MAX_PER_CAT; // ✅ max 3
+      fabAdd.disabled = state[cat].length >= MAX_PER_CAT;
 
       for (const task of state[cat]){
         const wrap = document.createElement("div");
@@ -709,7 +713,7 @@
         });
       }
     } else {
-      // ✅ CHECK mode is read-only now (no toggles here)
+      // CHECK mode is read-only now (no toggles here)
       fabAdd.style.display = "none";
       for (const task of state[cat]){
         const row = document.createElement("div");
@@ -726,7 +730,7 @@
   fabAdd.addEventListener("click", () => {
     if (mode !== MODE.PLAN) return;
     if (!currentCat) return;
-    if (state[currentCat].length >= MAX_PER_CAT) return; // ✅ max 3
+    if (state[currentCat].length >= MAX_PER_CAT) return;
 
     state[currentCat].push({ id: cryptoId(), text: "", done: false });
     saveState();
@@ -743,7 +747,6 @@
   });
 
   function persistAndRerender(cat){
-    // enforce max per cat defensively
     state[cat] = state[cat].slice(0, MAX_PER_CAT);
     saveState();
     renderCategory(cat);
@@ -912,7 +915,7 @@
       return;
     }
 
-    // CHECK: go to settlement screen (no checking in category lists)
+    // CHECK: go to settlement screen
     if (hasClaimedToday()) return;
     if (totalTasks() === 0) return;
 
@@ -924,6 +927,24 @@
     if (!ok) return;
 
     showSettlement();
+  });
+
+  // New Round: clear all and return to planning
+  newRoundBtn.addEventListener("click", () => {
+    const ok = confirm(
+      "Start a new round?\n\n" +
+      "This will clear all current todos and return to Planning."
+    );
+    if (!ok) return;
+
+    try { stopAR(); } catch {}
+    try { arOverlay.classList.remove("show"); } catch {}
+
+    state = { IU:[], IN:[], NU:[], NN:[] };
+    mode = MODE.PLAN;
+    saveMode();
+    saveState();
+    showMatrix();
   });
 
   // Finalize settlement -> claim today -> open AR
