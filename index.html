@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Eisenhower Matrix (Confirm → Check → AR Placeholder)</title>
+  <title>Eisenhower Matrix (Confirm → Settle → WebAR)</title>
+
+  <!-- WebAR libs (MindAR + A-Frame) -->
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
   <style>
     :root{
       --bg:#ffffff;
@@ -17,6 +23,7 @@
       --btnDisabled:#d9d9d9;
       --btnText:#0b0b0b;
       --danger:#ff5a5a;
+      --blue:#0b51ff;
     }
     *{box-sizing:border-box}
     html,body{height:100%; margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text);}
@@ -187,7 +194,7 @@
       display:none;
     }
 
-    /* Check row: static text + toggle */
+    /* Check row base (used in settlement + read-only category view) */
     .rowCheck{
       background: rgba(255,255,255,.55);
       border: 1px solid rgba(0,0,0,.18);
@@ -208,7 +215,7 @@
       padding: 2px 4px;
     }
 
-    /* Switch (only in Check mode) */
+    /* Switch (only in Settlement screen) */
     .switch{
       position:relative;
       width:38px;
@@ -262,18 +269,48 @@
       cursor:not-allowed;
     }
 
-    /* Back button */
+    /* Back button row */
     .backBar{
       display:flex;
       justify-content:center;
       padding-top: 6px;
+      gap:12px;
     }
 
-    /* AR placeholder overlay */
+    /* SETTLEMENT VIEW */
+    .settlePanel{
+      flex:1;
+      border:1px solid var(--border);
+      background: var(--cream);
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .settleHeader{
+      font-size:20px;
+      font-weight:800;
+      line-height:1.05;
+      margin-bottom:6px;
+    }
+    .settleSub{
+      font-size:12px;
+      color: rgba(0,0,0,.62);
+      line-height:1.25;
+      margin-bottom:10px;
+    }
+    .groupTitle{
+      font-size:12px;
+      font-weight:800;
+      margin: 10px 0 6px;
+      opacity:.75;
+    }
+
+    /* AR overlay */
     #arOverlay{
       position:fixed;
       inset:0;
-      background:#0b51ff;
+      background:#000;
       z-index:9999;
       display:none;
       color:#fff;
@@ -281,16 +318,31 @@
       padding-top: calc(18px + env(safe-area-inset-top));
     }
     #arOverlay.show{ display:flex; flex-direction:column; gap:12px; }
-    .arTitle{ font-size:20px; font-weight:800; }
-    .arHint{ font-size:13px; opacity:.9; line-height:1.3; }
+
+    #arSceneWrap{
+      position:absolute;
+      inset:0;
+      z-index:0;
+    }
+    #arHud{
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      height:100%;
+    }
+    .arTitle{ font-size:20px; font-weight:800; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+    .arHint{ font-size:13px; opacity:.95; line-height:1.3; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
     .arSpacer{ flex:1; }
     .arDone{
       height:44px;
       border:none;
       background:#ffffff;
-      color:#0b51ff;
+      color: var(--blue);
       font-weight:800;
       cursor:pointer;
+      border-radius:12px;
     }
   </style>
 </head>
@@ -338,17 +390,53 @@
         <button id="backBtn" class="bigBtn">Back</button>
       </div>
     </section>
+
+    <!-- SETTLEMENT VIEW -->
+    <section id="settleView" class="view">
+      <div class="settlePanel">
+        <div class="settleHeader">Settlement</div>
+        <div class="settleSub" id="settleNote">
+          Mark what you finished. Finalizing opens AR and can only be done once per day.
+        </div>
+        <div class="list" id="settleList"></div>
+      </div>
+
+      <div class="backBar">
+        <button id="settleBackBtn" class="bigBtn">Back</button>
+        <button id="settleGoBtn" class="bigBtn">View AR</button>
+      </div>
+    </section>
+
   </div>
 
-  <!-- AR Placeholder -->
+  <!-- WebAR Overlay -->
   <div id="arOverlay">
-    <div class="arTitle">AR Placeholder</div>
-    <div class="arHint">
-      This is a blue-screen placeholder for AR.<br>
-      Later: scan vase → show metal balls based on completion.
+    <div id="arSceneWrap">
+      <a-scene
+        id="arScene"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false"
+        renderer="colorManagement: true, physicallyCorrectLights: true"
+        embedded
+      >
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
+          <a-plane opacity="0.35" height="0.552" width="1"></a-plane>
+        </a-entity>
+      </a-scene>
     </div>
-    <div class="arSpacer"></div>
-    <button id="arDoneBtn" class="arDone">Done</button>
+
+    <div id="arHud">
+      <div class="arTitle">AR View</div>
+      <div class="arHint" id="arHint">
+        Point your camera at the target texture.<br>
+        Tip: matte surface + good light improves tracking.
+      </div>
+      <div class="arSpacer"></div>
+      <button id="arDoneBtn" class="arDone">Done</button>
+    </div>
   </div>
 
 <script>
@@ -361,8 +449,10 @@
 
   const MODE = {
     PLAN: "plan",   // only add/edit/delete
-    CHECK:"check"   // only toggle done
+    CHECK:"check"   // read-only; settlement required to mark done
   };
+
+  const MAX_PER_CAT = 3; // ✅ changed from 5 to 3
 
   const CATS = ["IU","IN","NU","NN"];
   const CAT_META = {
@@ -387,7 +477,7 @@
           id: t.id || cryptoId(),
           text: typeof t.text === "string" ? t.text : "",
           done: !!t.done
-        }));
+        })).slice(0, MAX_PER_CAT); // ✅ enforce max 3 on load
       }
       return parsed;
     }catch{
@@ -453,6 +543,7 @@
    ***********************/
   const matrixView = document.getElementById("matrixView");
   const catView    = document.getElementById("catView");
+  const settleView = document.getElementById("settleView");
 
   const catHeader  = document.getElementById("catHeader");
   const catList    = document.getElementById("catList");
@@ -463,9 +554,15 @@
   const mainBtn    = document.getElementById("mainBtn");
   const mainNote   = document.getElementById("mainNote");
 
+  const settleList = document.getElementById("settleList");
+  const settleNote = document.getElementById("settleNote");
+  const settleBackBtn = document.getElementById("settleBackBtn");
+  const settleGoBtn   = document.getElementById("settleGoBtn");
+
   function showMatrix(){
     currentCat = null;
     catView.classList.remove("active");
+    settleView.classList.remove("active");
     matrixView.classList.add("active");
     renderMatrix();
   }
@@ -473,6 +570,7 @@
   function showCategory(cat){
     currentCat = cat;
     matrixView.classList.remove("active");
+    settleView.classList.remove("active");
     catView.classList.add("active");
 
     catHeader.innerHTML = CAT_META[cat].title;
@@ -483,7 +581,15 @@
     renderCategory(cat);
   }
 
+  function showSettlement(){
+    matrixView.classList.remove("active");
+    catView.classList.remove("active");
+    settleView.classList.add("active");
+    renderSettlement();
+  }
+
   backBtn.addEventListener("click", showMatrix);
+  settleBackBtn.addEventListener("click", showMatrix);
 
   document.getElementById("matrixGrid").addEventListener("click", (e) => {
     const quad = e.target.closest(".quad");
@@ -495,7 +601,6 @@
    * Matrix render (mode-aware)
    ***********************/
   function renderMatrix(){
-    // previews: Plan/Check 都显示（最多 3 条）
     for (const cat of CATS){
       const box = document.getElementById("preview"+cat);
       box.innerHTML = "";
@@ -516,23 +621,24 @@
       if (!canConfirm){
         mainNote.textContent = "Click a category to add todos. Confirm unlocks after you add at least 1.";
       } else {
-        mainNote.textContent = "";
+        mainNote.textContent = `Max ${MAX_PER_CAT} items per category.`;
       }
     } else {
-      // CHECK mode: 不要求全完成才能 Check AR，只要有任务且今天没领过
       const claimed = hasClaimedToday();
       const hasTasks = totalTasks() > 0;
-      const canCheckAR = hasTasks && !claimed;
 
-      mainBtn.textContent = claimed ? "Checked today ✅" : "Check AR";
-      mainBtn.disabled = !canCheckAR;
+      mainBtn.textContent = claimed ? "Settled today ✅" : "Settle";
+      mainBtn.disabled = !hasTasks || claimed;
 
       if (!hasTasks){
         mainNote.textContent = "No todos. Go back and add tasks first.";
       } else if (claimed){
-        mainNote.textContent = "You already checked AR today. Come back tomorrow.";
+        mainNote.textContent = "You already finalized settlement today. Come back tomorrow.";
       } else {
-        mainNote.textContent = `Progress: ${completionRate()}% (you can Check AR anytime, but only once/day)`;
+        const picked = completionRate();
+        mainNote.textContent = picked > 0
+          ? `Ready to settle. Currently selected: ${picked}% (you can adjust in Settlement).`
+          : "Ready to settle. Tap Settle to mark what you finished (once per day), then view AR.";
       }
     }
   }
@@ -545,7 +651,7 @@
 
     if (mode === MODE.PLAN){
       fabAdd.style.display = "block";
-      fabAdd.disabled = state[cat].length >= 5;
+      fabAdd.disabled = state[cat].length >= MAX_PER_CAT; // ✅ max 3
 
       for (const task of state[cat]){
         const wrap = document.createElement("div");
@@ -603,35 +709,15 @@
         });
       }
     } else {
-      // CHECK mode: no add/edit/delete, only toggle
+      // ✅ CHECK mode is read-only now (no toggles here)
       fabAdd.style.display = "none";
-
       for (const task of state[cat]){
         const row = document.createElement("div");
         row.className = "rowCheck" + (task.done ? " done" : "");
-
         const text = document.createElement("div");
         text.className = "checkText";
         text.textContent = task.text || "(empty)";
-
-        const sw = document.createElement("label");
-        sw.className = "switch";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = !!task.done;
-        cb.addEventListener("change", () => {
-          task.done = cb.checked;
-          saveState();
-          renderCategory(cat);
-          renderMatrix();
-        });
-        const slider = document.createElement("span");
-        slider.className = "slider";
-        sw.appendChild(cb);
-        sw.appendChild(slider);
-
         row.appendChild(text);
-        row.appendChild(sw);
         catList.appendChild(row);
       }
     }
@@ -640,7 +726,7 @@
   fabAdd.addEventListener("click", () => {
     if (mode !== MODE.PLAN) return;
     if (!currentCat) return;
-    if (state[currentCat].length >= 5) return;
+    if (state[currentCat].length >= MAX_PER_CAT) return; // ✅ max 3
 
     state[currentCat].push({ id: cryptoId(), text: "", done: false });
     saveState();
@@ -657,9 +743,72 @@
   });
 
   function persistAndRerender(cat){
+    // enforce max per cat defensively
+    state[cat] = state[cat].slice(0, MAX_PER_CAT);
     saveState();
     renderCategory(cat);
     renderMatrix();
+  }
+
+  /***********************
+   * Settlement render (one-time finalize)
+   ***********************/
+  function renderSettlement(){
+    settleList.innerHTML = "";
+
+    const claimed = hasClaimedToday();
+    settleGoBtn.disabled = claimed || totalTasks() === 0;
+
+    settleNote.textContent = claimed
+      ? "You already finalized settlement today. Come back tomorrow."
+      : `Mark what you finished. Finalizing opens AR and can only be done once per day.`;
+
+    for (const cat of CATS){
+      const tasks = state[cat];
+      if (!tasks.length) continue;
+
+      const title = document.createElement("div");
+      title.className = "groupTitle";
+      title.innerHTML = CAT_META[cat].title.replace("<br>", " ");
+      settleList.appendChild(title);
+
+      for (const task of tasks){
+        const row = document.createElement("div");
+        row.className = "rowCheck" + (task.done ? " done" : "");
+
+        const text = document.createElement("div");
+        text.className = "checkText";
+        text.textContent = task.text || "(empty)";
+
+        const sw = document.createElement("label");
+        sw.className = "switch";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!task.done;
+        cb.disabled = claimed;
+
+        cb.addEventListener("change", () => {
+          task.done = cb.checked;
+          saveState();
+          renderSettlement();
+          renderMatrix();
+        });
+
+        const slider = document.createElement("span");
+        slider.className = "slider";
+        sw.appendChild(cb);
+        sw.appendChild(slider);
+
+        row.appendChild(text);
+        row.appendChild(sw);
+        settleList.appendChild(row);
+      }
+    }
+
+    if (!claimed && totalTasks() > 0){
+      const pct = completionRate();
+      settleNote.textContent = `Mark what you finished. Selected: ${pct}%. Finalize to open AR (once/day).`;
+    }
   }
 
   /***********************
@@ -705,13 +854,50 @@
   }
 
   /***********************
-   * Main button actions:
-   * PLAN: Confirm -> CHECK (locks list; resets all done to false)
-   * CHECK: Check AR -> confirm message -> blue screen (once/day)
+   * WebAR start/stop
    ***********************/
   const arOverlay = document.getElementById("arOverlay");
   const arDoneBtn = document.getElementById("arDoneBtn");
+  const arHint    = document.getElementById("arHint");
 
+  const arScene   = document.getElementById("arScene");
+  const arTarget0 = document.getElementById("arTarget0");
+
+  async function startAR(){
+    if (!arScene) return;
+    const startNow = async () => {
+      const sys = arScene.systems && arScene.systems["mindar-image-system"];
+      if (!sys) return;
+      try { await sys.start(); }
+      catch {
+        arHint.textContent = "Camera could not start. Use HTTPS (or localhost) and allow camera access.";
+      }
+    };
+    if (arScene.hasLoaded) startNow();
+    else arScene.addEventListener("loaded", startNow, { once:true });
+  }
+
+  function stopAR(){
+    try{
+      const sys = arScene.systems && arScene.systems["mindar-image-system"];
+      sys && sys.stop();
+    }catch{}
+  }
+
+  if (arTarget0){
+    arTarget0.addEventListener("targetFound", () => {
+      arHint.textContent = "Target found ✅ Tracking…";
+    });
+    arTarget0.addEventListener("targetLost", () => {
+      arHint.textContent = "Target lost. Point at the target texture again.";
+    });
+  }
+
+  /***********************
+   * Main button actions
+   * PLAN: Confirm -> CHECK (locks list; resets all done to false)
+   * CHECK: Settle -> Settlement screen (Finalize once/day) -> View AR
+   ***********************/
   mainBtn.addEventListener("click", () => {
     if (mode === MODE.PLAN){
       if (totalTasks() === 0) return;
@@ -726,22 +912,31 @@
       return;
     }
 
-    // CHECK mode: allow Check AR anytime (if has tasks), but only once/day
+    // CHECK: go to settlement screen (no checking in category lists)
     if (hasClaimedToday()) return;
     if (totalTasks() === 0) return;
 
     const ok = confirm(
-      "Check AR can only be triggered once per day.\n" +
-      "Please confirm you have toggled all completed tasks.\n\n" +
-      `Current progress: ${completionRate()}%.\nProceed?`
+      "You will mark completed tasks in a one-time Settlement.\n" +
+      "Finalizing Settlement can only be done once per day.\n\n" +
+      "Continue to Settlement?"
     );
     if (!ok) return;
 
-    arOverlay.classList.add("show");
+    showSettlement();
   });
 
-  arDoneBtn.addEventListener("click", () => {
-    // Claim today + clear everything + back to PLAN (per your flow)
+  // Finalize settlement -> claim today -> open AR
+  settleGoBtn.addEventListener("click", () => {
+    if (hasClaimedToday()) return;
+    if (totalTasks() === 0) return;
+
+    const ok = confirm(
+      "Finalize Settlement for today and open AR?\n" +
+      "You won't be able to settle again today."
+    );
+    if (!ok) return;
+
     const snapshot = {
       day: localDateKey(),
       total: totalTasks(),
@@ -751,6 +946,14 @@
       }
     };
     claimToday(snapshot);
+
+    arOverlay.classList.add("show");
+    startAR();
+  });
+
+  // AR Done -> clear all -> back to PLAN
+  arDoneBtn.addEventListener("click", () => {
+    stopAR();
 
     state = { IU:[], IN:[], NU:[], NN:[] };
     mode = MODE.PLAN;
