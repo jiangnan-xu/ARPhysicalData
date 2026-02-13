@@ -99,7 +99,7 @@
     }
     .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.45); }
 
-    .bottomBar{ display:flex; justify-content:center; padding-top:6px; }
+    .bottomBar{ display:flex; justify-content:center; padding-top:6px; flex-direction:column; gap:10px; align-items:center; }
 
     .primaryBtn{
       width: min(360px, 100%);
@@ -116,6 +116,10 @@
       background: var(--btnDisabled);
       color: rgba(0,0,0,.45);
       cursor:not-allowed;
+    }
+    .dangerSolid{
+      background: var(--danger);
+      color:#fff;
     }
 
     .tinyNote{
@@ -342,7 +346,7 @@
     <section id="matrixView" class="view active">
       <div class="topBar">
         <div></div>
-        <button id="newRoundBtn" class="textBtn danger">New Round</button>
+        <button id="newRoundBtnTop" class="textBtn danger" style="display:none;">New Round</button>
       </div>
 
       <div class="matrix" id="matrixGrid">
@@ -389,7 +393,7 @@
     <section id="settleView" class="view">
       <div class="topBar">
         <button id="settleBackBtn" class="textBtn back">← Back</button>
-        <div></div>
+        <button id="settleNewRoundText" class="textBtn danger" style="display:none;">New Round</button>
       </div>
 
       <div class="settlePanel">
@@ -400,6 +404,7 @@
 
       <div class="bottomBar">
         <button id="settleGoBtn" class="primaryBtn">View AR</button>
+        <button id="settleRewatchBtn" class="primaryBtn" style="display:none;">Rewatch AR</button>
       </div>
     </section>
 
@@ -418,7 +423,6 @@
       >
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <!-- ✅ AR CONTENT: ONE RED SPHERE -->
         <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
           <a-sphere
             radius="0.12"
@@ -538,12 +542,15 @@
   const backBtn     = document.getElementById("backBtn");
   const mainBtn     = document.getElementById("mainBtn");
   const mainNote    = document.getElementById("mainNote");
-  const newRoundBtn = document.getElementById("newRoundBtn");
+
+  const newRoundBtnTop = document.getElementById("newRoundBtnTop");
 
   const settleList    = document.getElementById("settleList");
   const settleNote    = document.getElementById("settleNote");
   const settleBackBtn = document.getElementById("settleBackBtn");
   const settleGoBtn   = document.getElementById("settleGoBtn");
+  const settleRewatchBtn = document.getElementById("settleRewatchBtn");
+  const settleNewRoundText = document.getElementById("settleNewRoundText");
 
   function showMatrix(){
     currentCat = null;
@@ -595,18 +602,20 @@
     }
 
     if (mode === MODE.PLAN){
-      newRoundBtn.style.display = "none";
+      newRoundBtnTop.style.display = "none";
       const canConfirm = totalTasks() > 0;
       mainBtn.textContent = "Confirm";
       mainBtn.disabled = !canConfirm;
       mainNote.textContent = canConfirm ? `Max ${MAX_PER_CAT}/cat.` : "Add 1+ todo.";
     } else {
-      newRoundBtn.style.display = "inline-block";
       const settled = isRoundSettled();
       const hasTasks = totalTasks() > 0;
+
+      newRoundBtnTop.style.display = settled ? "inline-block" : "none";
+
       mainBtn.textContent = settled ? "Settled ✅" : "Settle";
       mainBtn.disabled = !hasTasks || settled;
-      mainNote.textContent = !hasTasks ? "No todos." : (settled ? "Settled. New round." : "Settle once → AR.");
+      mainNote.textContent = !hasTasks ? "No todos." : (settled ? "Settled. You can rewatch AR." : "Settle once → AR.");
     }
   }
 
@@ -716,8 +725,16 @@
     settleList.innerHTML = "";
 
     const settled = isRoundSettled();
-    settleGoBtn.disabled = settled || totalTasks() === 0;
-    settleNote.textContent = settled ? "Already settled." : "Mark done → AR.";
+
+    // ✅ If settled: lock toggles, hide "View AR", show "Rewatch AR" + New Round text button
+    settleGoBtn.style.display = settled ? "none" : "inline-block";
+    settleRewatchBtn.style.display = settled ? "inline-block" : "none";
+    settleNewRoundText.style.display = settled ? "inline-block" : "none";
+
+    settleGoBtn.disabled = totalTasks() === 0; // only matters before settled
+    settleRewatchBtn.disabled = !settled;      // only after settled
+
+    settleNote.textContent = settled ? "Settled. Rewatch AR or start new round." : "Mark done → AR.";
 
     for (const cat of CATS){
       const tasks = state[cat];
@@ -741,9 +758,10 @@
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!task.done;
-        cb.disabled = settled;
+        cb.disabled = settled; // ✅ lock after settlement
 
         cb.addEventListener("change", () => {
+          if (settled) return;
           task.done = cb.checked;
           saveState();
           renderSettlement();
@@ -802,7 +820,7 @@
   }
 
   /***********************
-   * WebAR start/stop
+   * WebAR start/stop + return target view
    ***********************/
   const arOverlay = document.getElementById("arOverlay");
   const arDoneBtn = document.getElementById("arDoneBtn");
@@ -865,14 +883,16 @@
       return;
     }
 
+    // CHECK mode: go to settlement only if not settled
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
     showSettlement();
   });
 
-  newRoundBtn.addEventListener("click", () => {
-    if (!confirm("Clear + restart?")) return;
+  function startNewRoundFromAnywhere(){
+    if (!confirm("Start a new round?")) return;
 
+    // stop AR if running
     try { stopAR(); } catch {}
     try { arOverlay.classList.remove("show"); } catch {}
 
@@ -882,8 +902,13 @@
     saveState();
     clearRound();
     showMatrix();
-  });
+  }
 
+  // ✅ New Round appears only when settled (top-right on matrix, and on settlement page)
+  newRoundBtnTop.addEventListener("click", startNewRoundFromAnywhere);
+  settleNewRoundText.addEventListener("click", startNewRoundFromAnywhere);
+
+  // Before settled: settle + open AR
   settleGoBtn.addEventListener("click", () => {
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
@@ -892,19 +917,24 @@
 
     arOverlay.classList.add("show");
     startAR();
+
+    // After settlement, stay in settlement world (don’t clear)
+    renderSettlement();
+    renderMatrix();
   });
 
+  // ✅ After settled: rewatch AR without changing anything
+  settleRewatchBtn.addEventListener("click", () => {
+    if (!isRoundSettled()) return;
+    arOverlay.classList.add("show");
+    startAR();
+  });
+
+  // ✅ Done returns to settlement (not clearing)
   arDoneBtn.addEventListener("click", () => {
     stopAR();
-
-    state = { IU:[], IN:[], NU:[], NN:[] };
-    mode = MODE.PLAN;
-    saveMode();
-    saveState();
-    clearRound();
-
     arOverlay.classList.remove("show");
-    showMatrix();
+    showSettlement();
   });
 
   showMatrix();
