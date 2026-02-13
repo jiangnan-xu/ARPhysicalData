@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Eisenhower Matrix (Confirm → Settle → WebAR)</title>
 
-  <!-- ✅ Order matters: A-Frame first, then MindAR A-Frame plugin.
-       Kept BOTH MindAR scripts (not deleted), pinned to same version. -->
+  <!-- A-Frame first, then MindAR A-Frame plugin -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+
+  <!-- Kept (not deleted) but disabled to avoid conflicts -->
+  <script type="text/plain" data-kept="true"
+    src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
 
   <style>
     :root{
@@ -42,7 +44,6 @@
     .view{display:none; height:100%;}
     .view.active{display:flex; flex-direction:column; gap:12px;}
 
-    /* Top bars (text controls) */
     .topBar{
       display:flex;
       align-items:center;
@@ -59,16 +60,9 @@
       color: var(--text);
     }
     .textBtn:disabled{ opacity:.4; cursor:not-allowed; }
-    .textBtn.back{
-      font-weight:700;
-      color: rgba(0,0,0,.85);
-    }
-    .textBtn.danger{
-      font-weight:900;
-      color: var(--danger);
-    }
+    .textBtn.back{ font-weight:700; color: rgba(0,0,0,.85); }
+    .textBtn.danger{ font-weight:900; color: var(--danger); }
 
-    /* MATRIX */
     .matrix{
       flex:1;
       border:1px solid var(--border);
@@ -107,7 +101,6 @@
 
     .bottomBar{ display:flex; justify-content:center; padding-top:6px; }
 
-    /* Bigger primary buttons (Confirm / Settle / View AR) */
     .primaryBtn{
       width: min(360px, 100%);
       height: 56px;
@@ -133,7 +126,6 @@
       line-height:1.25;
     }
 
-    /* CATEGORY VIEW */
     .catPanel{
       flex:1;
       border:1px solid var(--border);
@@ -163,7 +155,6 @@
       padding-right:2px;
     }
 
-    /* Planning row: swipe-to-delete + editable */
     .swipeWrap{ position:relative; overflow:hidden; border-radius:10px; }
     .deleteBg{
       position:absolute;
@@ -209,7 +200,6 @@
       border-radius:8px;
     }
 
-    /* Read-only row (category in CHECK + settlement base) */
     .rowCheck{
       background: rgba(255,255,255,.55);
       border: 1px solid rgba(0,0,0,.18);
@@ -231,7 +221,6 @@
       padding:2px 4px;
     }
 
-    /* Switch (Settlement only) */
     .switch{ position:relative; width:38px; height:22px; flex:0 0 auto; }
     .switch input{ display:none; }
     .slider{
@@ -253,7 +242,6 @@
     .switch input:checked + .slider{ background: rgba(95,215,120,.55); }
     .switch input:checked + .slider:before{ transform: translateX(16px); background:#fff; }
 
-    /* Floating + (Planning only) */
     .fab{
       position:absolute;
       left:50%;
@@ -272,7 +260,6 @@
     }
     .fab:disabled{ opacity:.35; cursor:not-allowed; }
 
-    /* SETTLEMENT */
     .settlePanel{
       flex:1;
       border:1px solid var(--border);
@@ -302,7 +289,6 @@
       opacity:.75;
     }
 
-    /* AR overlay */
     #arOverlay{
       position:fixed;
       inset:0;
@@ -432,8 +418,13 @@
       >
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
+        <!-- ✅ AR CONTENT: ONE RED SPHERE -->
         <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
-          <a-plane opacity="0.35" height="0.552" width="1"></a-plane>
+          <a-sphere
+            radius="0.12"
+            position="0 0 0.15"
+            material="color: #ff0000; metalness: 0.1; roughness: 0.4"
+          ></a-sphere>
         </a-entity>
       </a-scene>
     </div>
@@ -452,7 +443,7 @@
    ***********************/
   const STORAGE_KEY = "eisen_matrix_v4_state";
   const MODE_KEY    = "eisen_matrix_v4_mode";
-  const ROUND_KEY   = "eisen_matrix_v4_round"; // { id, settledAt, snapshot }
+  const ROUND_KEY   = "eisen_matrix_v4_round";
 
   const MODE = { PLAN:"plan", CHECK:"check" };
   const MAX_PER_CAT = 3;
@@ -511,9 +502,7 @@
         settledAt: (typeof r.settledAt === "number") ? r.settledAt : null,
         snapshot: r.snapshot || null
       };
-    }catch{
-      return null;
-    }
+    }catch{ return null; }
   }
   function saveRound(){
     if (!round) localStorage.removeItem(ROUND_KEY);
@@ -531,9 +520,6 @@
 
   if (mode === MODE.CHECK && !round) startRound();
 
-  /***********************
-   * Helpers
-   ***********************/
   function allTasks(){ return CATS.flatMap(c => state[c]); }
   function totalTasks(){ return allTasks().length; }
 
@@ -566,7 +552,6 @@
     matrixView.classList.add("active");
     renderMatrix();
   }
-
   function showCategory(cat){
     currentCat = cat;
     matrixView.classList.remove("active");
@@ -580,7 +565,6 @@
 
     renderCategory(cat);
   }
-
   function showSettlement(){
     matrixView.classList.remove("active");
     catView.classList.remove("active");
@@ -597,9 +581,6 @@
     showCategory(quad.dataset.cat);
   });
 
-  /***********************
-   * Render: Matrix
-   ***********************/
   function renderMatrix(){
     for (const cat of CATS){
       const box = document.getElementById("preview"+cat);
@@ -629,9 +610,6 @@
     }
   }
 
-  /***********************
-   * Render: Category
-   ***********************/
   function renderCategory(cat){
     catList.innerHTML = "";
 
@@ -734,9 +712,6 @@
     renderMatrix();
   }
 
-  /***********************
-   * Render: Settlement
-   ***********************/
   function renderSettlement(){
     settleList.innerHTML = "";
 
@@ -787,9 +762,6 @@
     }
   }
 
-  /***********************
-   * Swipe to delete (PLAN only)
-   ***********************/
   function attachSwipeToDelete(rowEl, onDelete){
     let startX = 0;
     let currentX = 0;
@@ -839,37 +811,18 @@
   const arScene   = document.getElementById("arScene");
   const arTarget0 = document.getElementById("arTarget0");
 
-  // A small retry helps if the plugin registers slightly later on some devices.
   async function startAR(){
     if (!arScene) return;
 
     arHint.textContent = "Starting…";
-
-    // Let layout happen (overlay must be visible before camera init on some mobile browsers)
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try { arScene.play && arScene.play(); } catch {}
 
-    const tryGetSystem = () => arScene.systems && arScene.systems["mindar-image-system"];
-
-    let sys = tryGetSystem();
+    const sys = arScene.systems && arScene.systems["mindar-image-system"];
     if (!sys){
-      // Retry a few times (script load / A-Frame init timing)
-      for (let i=0; i<12 && !sys; i++){
-        await new Promise(r => setTimeout(r, 80));
-        sys = tryGetSystem();
-      }
-    }
-
-    if (!sys){
-      const hasAFRAME = !!window.AFRAME;
-      const hasComp = !!(window.AFRAME && AFRAME.components && AFRAME.components["mindar-image"]);
-      arHint.textContent = hasComp ? "MindAR system missing." : "MindAR plugin not loaded.";
-      console.error("AR init failed:", {
-        hasAFRAME,
-        hasMindarComponent: hasComp,
-        sceneSystems: arScene.systems
-      });
+      arHint.textContent = "AR init failed.";
+      console.error("AR init failed: mindar-image-system missing.");
       return;
     }
 
@@ -878,8 +831,8 @@
       arHint.textContent = "Point at target.";
       try { arScene.resize && arScene.resize(); } catch {}
     }catch(e){
-      arHint.textContent = "Camera blocked. Check permission.";
-      console.error("sys.start() failed:", e);
+      arHint.textContent = "Camera blocked.";
+      console.error(e);
     }
   }
 
@@ -954,9 +907,6 @@
     showMatrix();
   });
 
-  /***********************
-   * Initial
-   ***********************/
   showMatrix();
 </script>
 </body>
