@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Eisenhower Matrix (Confirm → Settle → WebAR)</title>
 
-  <!-- WebAR libs (MindAR + A-Frame) -->
-  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
+  <!-- ✅ Order matters: A-Frame first, then MindAR A-Frame plugin.
+       Kept BOTH MindAR scripts (not deleted), pinned to same version. -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
 
   <style>
     :root{
@@ -63,7 +64,7 @@
       color: rgba(0,0,0,.85);
     }
     .textBtn.danger{
-      font-weight:800;
+      font-weight:900;
       color: var(--danger);
     }
 
@@ -94,12 +95,7 @@
     .quad.cream{ background: var(--cream); }
 
     .quadTitle{ font-weight:600; margin-bottom:8px; }
-    .preview{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      margin-top:4px;
-    }
+    .preview{ display:flex; flex-direction:column; gap:6px; margin-top:4px; }
     .previewItem{
       font-size:11px;
       color: rgba(0,0,0,.75);
@@ -109,21 +105,17 @@
     }
     .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.45); }
 
-    .bottomBar{
-      display:flex;
-      justify-content:center;
-      padding-top: 6px;
-    }
+    .bottomBar{ display:flex; justify-content:center; padding-top:6px; }
 
     /* Bigger primary buttons (Confirm / Settle / View AR) */
     .primaryBtn{
       width: min(360px, 100%);
-      height: 52px;
+      height: 56px;
       border:none;
       border-radius:14px;
       background: var(--btn);
       color: var(--btnText);
-      font-weight:800;
+      font-weight:900;
       font-size:16px;
       cursor:pointer;
     }
@@ -137,7 +129,7 @@
       font-size:12px;
       color: var(--muted);
       text-align:center;
-      min-height: 16px;
+      min-height:16px;
       line-height:1.25;
     }
 
@@ -157,9 +149,9 @@
 
     .catHeader{
       font-size:22px;
-      font-weight:700;
+      font-weight:800;
       line-height:1.05;
-      margin-bottom: 10px;
+      margin-bottom:10px;
     }
     .list{
       display:flex;
@@ -182,7 +174,7 @@
       align-items:center;
       padding-right:12px;
       color:#fff;
-      font-weight:700;
+      font-weight:800;
       pointer-events:none;
     }
     .row{
@@ -198,25 +190,18 @@
       touch-action: pan-y;
       border-radius:10px;
     }
-
-    .textBox{
-      flex:1;
-      min-width:0;
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
+    .textBox{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
     .textView{
       font-size:12px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding: 2px 4px;
+      padding:2px 4px;
     }
     .editInput{
       width:100%;
       font-size:12px;
-      padding: 6px 6px;
+      padding:6px 6px;
       border:1px solid rgba(0,0,0,.25);
       background: rgba(255,255,255,.9);
       outline:none;
@@ -224,7 +209,7 @@
       border-radius:8px;
     }
 
-    /* Read-only row (category in CHECK + settlement rows base) */
+    /* Read-only row (category in CHECK + settlement base) */
     .rowCheck{
       background: rgba(255,255,255,.55);
       border: 1px solid rgba(0,0,0,.18);
@@ -243,16 +228,11 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding: 2px 4px;
+      padding:2px 4px;
     }
 
     /* Switch (Settlement only) */
-    .switch{
-      position:relative;
-      width:38px;
-      height:22px;
-      flex:0 0 auto;
-    }
+    .switch{ position:relative; width:38px; height:22px; flex:0 0 auto; }
     .switch input{ display:none; }
     .slider{
       position:absolute; inset:0;
@@ -270,19 +250,14 @@
       border-radius:50%;
       transition:.18s;
     }
-    .switch input:checked + .slider{
-      background: rgba(95,215,120,.55);
-    }
-    .switch input:checked + .slider:before{
-      transform: translateX(16px);
-      background:#fff;
-    }
+    .switch input:checked + .slider{ background: rgba(95,215,120,.55); }
+    .switch input:checked + .slider:before{ transform: translateX(16px); background:#fff; }
 
     /* Floating + (Planning only) */
     .fab{
       position:absolute;
       left:50%;
-      bottom: 64px;
+      bottom:64px;
       transform: translateX(-50%);
       width:56px;
       height:56px;
@@ -310,7 +285,7 @@
     }
     .settleHeader{
       font-size:20px;
-      font-weight:800;
+      font-weight:900;
       line-height:1.05;
       margin-bottom:6px;
     }
@@ -322,7 +297,7 @@
     }
     .groupTitle{
       font-size:12px;
-      font-weight:800;
+      font-weight:900;
       margin: 10px 0 6px;
       opacity:.75;
     }
@@ -340,12 +315,7 @@
     }
     #arOverlay.show{ display:flex; flex-direction:column; gap:12px; }
 
-    #arSceneWrap{
-      position:absolute;
-      inset:0;
-      z-index:0;
-    }
-    /* Force full screen canvas */
+    #arSceneWrap{ position:absolute; inset:0; z-index:0; }
     #arScene{
       position:absolute !important;
       inset:0 !important;
@@ -363,15 +333,15 @@
       height:100%;
       pointer-events:none;
     }
-    .arTitle{ font-size:20px; font-weight:800; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+    .arTitle{ font-size:20px; font-weight:900; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
     .arHint{ font-size:13px; opacity:.95; line-height:1.3; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
     .arSpacer{ flex:1; }
     .arDone{
       height:44px;
       border:none;
-      background:#ffffff;
+      background:#fff;
       color: var(--blue);
-      font-weight:800;
+      font-weight:900;
       cursor:pointer;
       border-radius:12px;
       pointer-events:auto;
@@ -550,10 +520,7 @@
     else localStorage.setItem(ROUND_KEY, JSON.stringify(round));
   }
   function isRoundSettled(){ return !!round?.settledAt; }
-  function startRound(){
-    round = { id: cryptoId(), settledAt: null, snapshot: null };
-    saveRound();
-  }
+  function startRound(){ round = { id: cryptoId(), settledAt: null, snapshot: null }; saveRound(); }
   function settleRound(snapshot){
     if (!round) startRound();
     round.settledAt = Date.now();
@@ -571,7 +538,7 @@
   function totalTasks(){ return allTasks().length; }
 
   /***********************
-   * View switching
+   * Views
    ***********************/
   const matrixView = document.getElementById("matrixView");
   const catView    = document.getElementById("catView");
@@ -582,13 +549,13 @@
   const catPanel   = document.getElementById("catPanel");
   const fabAdd     = document.getElementById("fabAdd");
 
-  const backBtn    = document.getElementById("backBtn");
-  const mainBtn    = document.getElementById("mainBtn");
-  const mainNote   = document.getElementById("mainNote");
-  const newRoundBtn= document.getElementById("newRoundBtn");
+  const backBtn     = document.getElementById("backBtn");
+  const mainBtn     = document.getElementById("mainBtn");
+  const mainNote    = document.getElementById("mainNote");
+  const newRoundBtn = document.getElementById("newRoundBtn");
 
-  const settleList = document.getElementById("settleList");
-  const settleNote = document.getElementById("settleNote");
+  const settleList    = document.getElementById("settleList");
+  const settleNote    = document.getElementById("settleNote");
   const settleBackBtn = document.getElementById("settleBackBtn");
   const settleGoBtn   = document.getElementById("settleGoBtn");
 
@@ -631,7 +598,7 @@
   });
 
   /***********************
-   * Matrix render
+   * Render: Matrix
    ***********************/
   function renderMatrix(){
     for (const cat of CATS){
@@ -648,28 +615,22 @@
 
     if (mode === MODE.PLAN){
       newRoundBtn.style.display = "none";
-
       const canConfirm = totalTasks() > 0;
       mainBtn.textContent = "Confirm";
       mainBtn.disabled = !canConfirm;
       mainNote.textContent = canConfirm ? `Max ${MAX_PER_CAT}/cat.` : "Add 1+ todo.";
     } else {
       newRoundBtn.style.display = "inline-block";
-
       const settled = isRoundSettled();
       const hasTasks = totalTasks() > 0;
-
       mainBtn.textContent = settled ? "Settled ✅" : "Settle";
       mainBtn.disabled = !hasTasks || settled;
-
-      if (!hasTasks) mainNote.textContent = "No todos.";
-      else if (settled) mainNote.textContent = "Settled. New round to retry.";
-      else mainNote.textContent = "Settle once → AR.";
+      mainNote.textContent = !hasTasks ? "No todos." : (settled ? "Settled. New round." : "Settle once → AR.");
     }
   }
 
   /***********************
-   * Category render
+   * Render: Category
    ***********************/
   function renderCategory(cat){
     catList.innerHTML = "";
@@ -774,7 +735,7 @@
   }
 
   /***********************
-   * Settlement render
+   * Render: Settlement
    ***********************/
   function renderSettlement(){
     settleList.innerHTML = "";
@@ -878,26 +839,48 @@
   const arScene   = document.getElementById("arScene");
   const arTarget0 = document.getElementById("arTarget0");
 
+  // A small retry helps if the plugin registers slightly later on some devices.
   async function startAR(){
     if (!arScene) return;
+
+    arHint.textContent = "Starting…";
+
+    // Let layout happen (overlay must be visible before camera init on some mobile browsers)
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     try { arScene.play && arScene.play(); } catch {}
 
-    const startNow = async () => {
-      const sys = arScene.systems && arScene.systems["mindar-image-system"];
-      if (!sys) { arHint.textContent = "AR init failed."; return; }
-      try {
-        arHint.textContent = "Starting…";
-        await sys.start();
-        arHint.textContent = "Point at target.";
-        try { arScene.resize && arScene.resize(); } catch {}
-      } catch (e) {
-        arHint.textContent = "No camera. Use HTTPS + allow.";
-        console.error(e);
-      }
-    };
+    const tryGetSystem = () => arScene.systems && arScene.systems["mindar-image-system"];
 
-    if (arScene.hasLoaded) startNow();
-    else arScene.addEventListener("loaded", startNow, { once:true });
+    let sys = tryGetSystem();
+    if (!sys){
+      // Retry a few times (script load / A-Frame init timing)
+      for (let i=0; i<12 && !sys; i++){
+        await new Promise(r => setTimeout(r, 80));
+        sys = tryGetSystem();
+      }
+    }
+
+    if (!sys){
+      const hasAFRAME = !!window.AFRAME;
+      const hasComp = !!(window.AFRAME && AFRAME.components && AFRAME.components["mindar-image"]);
+      arHint.textContent = hasComp ? "MindAR system missing." : "MindAR plugin not loaded.";
+      console.error("AR init failed:", {
+        hasAFRAME,
+        hasMindarComponent: hasComp,
+        sceneSystems: arScene.systems
+      });
+      return;
+    }
+
+    try{
+      await sys.start();
+      arHint.textContent = "Point at target.";
+      try { arScene.resize && arScene.resize(); } catch {}
+    }catch(e){
+      arHint.textContent = "Camera blocked. Check permission.";
+      console.error("sys.start() failed:", e);
+    }
   }
 
   function stopAR(){
@@ -913,7 +896,7 @@
   }
 
   /***********************
-   * Main button actions
+   * Buttons
    ***********************/
   mainBtn.addEventListener("click", () => {
     if (mode === MODE.PLAN){
@@ -931,8 +914,6 @@
 
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
-
-    if (!confirm("Settlement?")) return;
     showSettlement();
   });
 
@@ -954,8 +935,6 @@
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
-    if (!confirm("Finalize + AR?")) return;
-
     settleRound({ total: totalTasks() });
 
     arOverlay.classList.add("show");
@@ -976,7 +955,7 @@
   });
 
   /***********************
-   * Initial render
+   * Initial
    ***********************/
   showMatrix();
 </script>
