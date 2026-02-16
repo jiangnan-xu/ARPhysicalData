@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Eisenhower Matrix (Confirm → Settle → WebAR)</title>
 
-  <!-- A-Frame first, then MindAR A-Frame plugin -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Kept (not deleted) but disabled to avoid conflicts -->
   <script type="text/plain" data-kept="true"
     src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
 
@@ -99,7 +97,14 @@
     }
     .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.45); }
 
-    .bottomBar{ display:flex; justify-content:center; padding-top:6px; flex-direction:column; gap:10px; align-items:center; }
+    .bottomBar{
+      display:flex;
+      justify-content:center;
+      padding-top:6px;
+      flex-direction:column;
+      gap:10px;
+      align-items:center;
+    }
 
     .primaryBtn{
       width: min(360px, 100%);
@@ -116,10 +121,6 @@
       background: var(--btnDisabled);
       color: rgba(0,0,0,.45);
       cursor:not-allowed;
-    }
-    .dangerSolid{
-      background: var(--danger);
-      color:#fff;
     }
 
     .tinyNote{
@@ -421,14 +422,13 @@
         renderer="colorManagement: true, physicallyCorrectLights: true"
         embedded
       >
+        <a-entity light="type: ambient; intensity: 0.85"></a-entity>
+        <a-entity light="type: directional; intensity: 0.7" position="0 1 0.8"></a-entity>
+
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
-          <a-sphere
-            radius="0.12"
-            position="0 0 0.15"
-            material="color: #ff0000; metalness: 0.1; roughness: 0.4"
-          ></a-sphere>
+          <a-entity id="ballRoot"></a-entity>
         </a-entity>
       </a-scene>
     </div>
@@ -442,9 +442,6 @@
   </div>
 
 <script>
-  /***********************
-   * Storage + Modes
-   ***********************/
   const STORAGE_KEY = "eisen_matrix_v4_state";
   const MODE_KEY    = "eisen_matrix_v4_mode";
   const ROUND_KEY   = "eisen_matrix_v4_round";
@@ -526,6 +523,156 @@
 
   function allTasks(){ return CATS.flatMap(c => state[c]); }
   function totalTasks(){ return allTasks().length; }
+  function completedCount(){ return allTasks().reduce((a,t)=>a+(t.done?1:0),0); }
+  function incompleteCount(){ return totalTasks() - completedCount(); }
+  function completionRatio(){
+    const total = totalTasks();
+    return total ? (completedCount()/total) : 0;
+  }
+
+  /***********************
+   * Outcome logic (UPDATED)
+   * - Only2 -> chill
+   * - Else: ratio >= 2/3 -> celebrate
+   * - Else (including 1/3~2/3) -> fall
+   ***********************/
+  function computeOutcomeAndCount(){
+    const total = totalTasks();
+    const done = completedCount();
+    const undone = total - done;
+
+    const hasNon2 = (state.IU.length + state.IN.length + state.NU.length) > 0;
+    const only2 = (!hasNon2) && (state.NN.length > 0);
+
+    const ratio = completionRatio();
+
+    let outcome;
+    if (only2){
+      outcome = "chill";
+    } else {
+      outcome = (ratio >= (2/3)) ? "celebrate" : "fall";
+    }
+
+    let nBalls = (outcome === "fall") ? (undone * 3) : (done * 3);
+    nBalls = Math.min(nBalls, 60);
+
+    return { outcome, nBalls, total, done, undone, ratio, only2 };
+  }
+
+  /***********************
+   * AR balls generator
+   ***********************/
+  const ballRoot = document.getElementById("ballRoot");
+  function clearBalls(){
+    if (!ballRoot) return;
+    while (ballRoot.firstChild) ballRoot.removeChild(ballRoot.firstChild);
+  }
+  function rand(min,max){ return min + Math.random()*(max-min); }
+  function randInt(min,max){ return Math.floor(rand(min,max+1)); }
+  function randomBrightColor(){
+    const palette = ["#ff3b30","#ff9500","#ffcc00","#34c759","#5ac8fa","#007aff","#5856d6","#ff2d55"];
+    return palette[randInt(0, palette.length-1)];
+  }
+
+  function addBallCelebrate(){
+    const s = document.createElement("a-sphere");
+    s.setAttribute("radius", rand(0.035, 0.055).toFixed(3));
+    s.setAttribute("material", `color: ${randomBrightColor()}; metalness: 0.95; roughness: 0.18`);
+
+    const x = rand(-0.18, 0.18);
+    const z = rand(0.05, 0.28);
+    const baseY = rand(-0.05, 0.08);
+    s.setAttribute("position", `${x.toFixed(3)} ${baseY.toFixed(3)} ${z.toFixed(3)}`);
+
+    const jump = rand(0.08, 0.18);
+    const dur1 = randInt(700, 1200);
+    const delay = randInt(0, 600);
+    s.setAttribute("animation__jump",
+      `property: position; dir: alternate; dur: ${dur1}; delay: ${delay}; loop: true; easing: easeInOutSine; to: ${x.toFixed(3)} ${(baseY+jump).toFixed(3)} ${z.toFixed(3)}`);
+
+    const dur2 = randInt(900, 1600);
+    const rotA = rand(-18, 18);
+    const rotB = -rotA;
+    s.setAttribute("rotation", `0 0 ${rotA.toFixed(1)}`);
+    s.setAttribute("animation__rock",
+      `property: rotation; dir: alternate; dur: ${dur2}; delay: ${delay}; loop: true; easing: easeInOutSine; to: 0 0 ${rotB.toFixed(1)}`);
+
+    return s;
+  }
+
+  function addBallFall(){
+    const s = document.createElement("a-sphere");
+    s.setAttribute("radius", rand(0.040, 0.060).toFixed(3));
+    s.setAttribute("material", `color: #7a7a7a; metalness: 0.0; roughness: 1.0`);
+
+    const x = rand(-0.22, 0.22);
+    const z = rand(0.06, 0.30);
+    const startY = rand(0.18, 0.45);
+    const endY = rand(-0.45, -0.25);
+
+    s.setAttribute("position", `${x.toFixed(3)} ${startY.toFixed(3)} ${z.toFixed(3)}`);
+
+    const dur = randInt(700, 1400);
+    const delay = randInt(0, 700);
+
+    s.setAttribute("animation__fall",
+      `property: position; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInQuad; to: ${(x + rand(-0.05,0.05)).toFixed(3)} ${endY.toFixed(3)} ${(z + rand(-0.03,0.03)).toFixed(3)}`);
+
+    const spinDur = randInt(900, 1600);
+    s.setAttribute("animation__spin",
+      `property: rotation; dur: ${spinDur}; delay: ${delay}; loop: true; easing: linear; to: ${randInt(180, 540)} ${randInt(180, 540)} ${randInt(180, 540)}`);
+
+    s.addEventListener("animationcomplete__fall", () => {
+      const nx = rand(-0.22, 0.22);
+      const nz = rand(0.06, 0.30);
+      const ny = rand(0.18, 0.45);
+      s.setAttribute("position", `${nx.toFixed(3)} ${ny.toFixed(3)} ${nz.toFixed(3)}`);
+      s.setAttribute("animation__fall",
+        `property: position; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInQuad; to: ${(nx + rand(-0.05,0.05)).toFixed(3)} ${endY.toFixed(3)} ${(nz + rand(-0.03,0.03)).toFixed(3)}`);
+    });
+
+    return s;
+  }
+
+  function addBallChill(){
+    const s = document.createElement("a-sphere");
+    s.setAttribute("radius", rand(0.038, 0.055).toFixed(3));
+    s.setAttribute("material", `color: #7fffe2; metalness: 0.85; roughness: 0.25`);
+
+    const x0 = rand(-0.18, 0.18);
+    const z0 = rand(0.07, 0.28);
+    const y0 = rand(-0.02, 0.12);
+    s.setAttribute("position", `${x0.toFixed(3)} ${y0.toFixed(3)} ${z0.toFixed(3)}`);
+
+    const dx = rand(0.03, 0.09) * (Math.random()<0.5?-1:1);
+    const dy = rand(0.02, 0.06);
+    const dz = rand(0.02, 0.06) * (Math.random()<0.5?-1:1);
+
+    const dur = randInt(1400, 2400);
+    const delay = randInt(0, 700);
+
+    s.setAttribute("animation__drift",
+      `property: position; dir: alternate; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInOutSine; to: ${(x0+dx).toFixed(3)} ${(y0+dy).toFixed(3)} ${(z0+dz).toFixed(3)}`);
+
+    const dur2 = randInt(1800, 3200);
+    s.setAttribute("animation__tilt",
+      `property: rotation; dir: alternate; dur: ${dur2}; delay: ${delay}; loop: true; easing: easeInOutSine; to: ${rand(-12,12).toFixed(1)} ${rand(-20,20).toFixed(1)} ${rand(-12,12).toFixed(1)}`);
+
+    return s;
+  }
+
+  function buildARVisual(snapshot){
+    clearBalls();
+    if (!ballRoot) return;
+
+    for (let i=0; i<snapshot.nBalls; i++){
+      let ball;
+      if (snapshot.outcome === "celebrate") ball = addBallCelebrate();
+      else if (snapshot.outcome === "fall") ball = addBallFall();
+      else ball = addBallChill();
+      ballRoot.appendChild(ball);
+    }
+  }
 
   /***********************
    * Views
@@ -542,7 +689,6 @@
   const backBtn     = document.getElementById("backBtn");
   const mainBtn     = document.getElementById("mainBtn");
   const mainNote    = document.getElementById("mainNote");
-
   const newRoundBtnTop = document.getElementById("newRoundBtnTop");
 
   const settleList    = document.getElementById("settleList");
@@ -726,15 +872,22 @@
 
     const settled = isRoundSettled();
 
-    // ✅ If settled: lock toggles, hide "View AR", show "Rewatch AR" + New Round text button
     settleGoBtn.style.display = settled ? "none" : "inline-block";
     settleRewatchBtn.style.display = settled ? "inline-block" : "none";
     settleNewRoundText.style.display = settled ? "inline-block" : "none";
 
-    settleGoBtn.disabled = totalTasks() === 0; // only matters before settled
-    settleRewatchBtn.disabled = !settled;      // only after settled
+    settleGoBtn.disabled = totalTasks() === 0;
+    settleRewatchBtn.disabled = !settled;
 
-    settleNote.textContent = settled ? "Settled. Rewatch AR or start new round." : "Mark done → AR.";
+    if (!settled) {
+      const snap = computeOutcomeAndCount();
+      const nice = snap.outcome[0].toUpperCase() + snap.outcome.slice(1);
+      settleNote.textContent = `Outcome: ${nice}.`;
+    } else {
+      const label = (round?.snapshot?.outcome || "fall");
+      const nice = label[0].toUpperCase() + label.slice(1);
+      settleNote.textContent = `Settled: ${nice}. Rewatch or New Round.`;
+    }
 
     for (const cat of CATS){
       const tasks = state[cat];
@@ -758,7 +911,7 @@
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!task.done;
-        cb.disabled = settled; // ✅ lock after settlement
+        cb.disabled = settled;
 
         cb.addEventListener("change", () => {
           if (settled) return;
@@ -820,19 +973,22 @@
   }
 
   /***********************
-   * WebAR start/stop + return target view
+   * WebAR start/stop
    ***********************/
   const arOverlay = document.getElementById("arOverlay");
   const arDoneBtn = document.getElementById("arDoneBtn");
   const arHint    = document.getElementById("arHint");
-
   const arScene   = document.getElementById("arScene");
   const arTarget0 = document.getElementById("arTarget0");
 
-  async function startAR(){
+  async function startARWithSnapshot(snapshot){
     if (!arScene) return;
 
-    arHint.textContent = "Starting…";
+    buildARVisual(snapshot);
+
+    const nice = snapshot.outcome[0].toUpperCase() + snapshot.outcome.slice(1);
+    arHint.textContent = `${nice}. Point at target.`;
+
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try { arScene.play && arScene.play(); } catch {}
@@ -846,7 +1002,6 @@
 
     try{
       await sys.start();
-      arHint.textContent = "Point at target.";
       try { arScene.resize && arScene.resize(); } catch {}
     }catch(e){
       arHint.textContent = "Camera blocked.";
@@ -862,19 +1017,27 @@
   }
 
   if (arTarget0){
-    arTarget0.addEventListener("targetFound", () => { arHint.textContent = "Found ✅"; });
-    arTarget0.addEventListener("targetLost",  () => { arHint.textContent = "Point at target."; });
+    arTarget0.addEventListener("targetFound", () => {
+      if (!arHint.textContent.includes("Found")) arHint.textContent = arHint.textContent.replace("Point at target.", "Found ✅");
+    });
+    arTarget0.addEventListener("targetLost",  () => {
+      const t = arHint.textContent;
+      if (t.includes("Found")) arHint.textContent = t.replace("Found ✅", "Point at target.");
+    });
   }
 
   /***********************
-   * Buttons
+   * Buttons + Flow
    ***********************/
-  mainBtn.addEventListener("click", () => {
+  const matrixViewEl = document.getElementById("matrixView");
+  const catViewEl = document.getElementById("catView");
+  const settleViewEl = document.getElementById("settleView");
+  const mainBtnEl = document.getElementById("mainBtn");
+
+  mainBtnEl.addEventListener("click", () => {
     if (mode === MODE.PLAN){
       if (totalTasks() === 0) return;
-
       for (const c of CATS) for (const t of state[c]) t.done = false;
-
       mode = MODE.CHECK;
       startRound();
       saveMode();
@@ -882,8 +1045,6 @@
       showMatrix();
       return;
     }
-
-    // CHECK mode: go to settlement only if not settled
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
     showSettlement();
@@ -892,7 +1053,6 @@
   function startNewRoundFromAnywhere(){
     if (!confirm("Start a new round?")) return;
 
-    // stop AR if running
     try { stopAR(); } catch {}
     try { arOverlay.classList.remove("show"); } catch {}
 
@@ -904,39 +1064,59 @@
     showMatrix();
   }
 
-  // ✅ New Round appears only when settled (top-right on matrix, and on settlement page)
   newRoundBtnTop.addEventListener("click", startNewRoundFromAnywhere);
   settleNewRoundText.addEventListener("click", startNewRoundFromAnywhere);
 
-  // Before settled: settle + open AR
-  settleGoBtn.addEventListener("click", () => {
+  settleGoBtn.addEventListener("click", async () => {
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
 
-    settleRound({ total: totalTasks() });
+    const snap = computeOutcomeAndCount();
+
+    settleRound({
+      outcome: snap.outcome,
+      nBalls: snap.nBalls,
+      total: snap.total,
+      done: snap.done,
+      undone: snap.undone,
+      ratio: snap.ratio,
+      only2: snap.only2
+    });
 
     arOverlay.classList.add("show");
-    startAR();
+    await startARWithSnapshot(round.snapshot);
 
-    // After settlement, stay in settlement world (don’t clear)
     renderSettlement();
     renderMatrix();
   });
 
-  // ✅ After settled: rewatch AR without changing anything
-  settleRewatchBtn.addEventListener("click", () => {
+  settleRewatchBtn.addEventListener("click", async () => {
     if (!isRoundSettled()) return;
+    if (!round?.snapshot) return;
+
     arOverlay.classList.add("show");
-    startAR();
+    await startARWithSnapshot(round.snapshot);
   });
 
-  // ✅ Done returns to settlement (not clearing)
   arDoneBtn.addEventListener("click", () => {
     stopAR();
     arOverlay.classList.remove("show");
     showSettlement();
   });
 
+  // Wire remaining elements
+  const catHeaderEl  = document.getElementById("catHeader");
+  const catListEl    = document.getElementById("catList");
+  const catPanelEl   = document.getElementById("catPanel");
+  const fabAddEl     = document.getElementById("fabAdd");
+  const backBtnEl    = document.getElementById("backBtn");
+  const settleBackBtnEl = document.getElementById("settleBackBtn");
+
+  // already used ids above; just ensure listeners are set
+  backBtnEl.addEventListener("click", showMatrix);
+  settleBackBtnEl.addEventListener("click", showMatrix);
+
+  // initial render
   showMatrix();
 </script>
 </body>
