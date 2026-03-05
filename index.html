@@ -780,26 +780,34 @@
   }
 
   function showCategory(cat){
-    currentCat = cat;
-    matrixView.classList.remove("active");
-    settleView.classList.remove("active");
-    catView.classList.add("active");
+  currentCat = cat;
+  matrixView.classList.remove("active");
+  settleView.classList.remove("active");
+  catView.classList.add("active");
 
-    catHeader.innerHTML = CAT_META[cat].title;
-    catPanel.classList.remove("yellowBg","creamBg");
-    if (CAT_META[cat].bg === "yellow") catPanel.classList.add("yellowBg");
-    if (CAT_META[cat].bg === "cream")  catPanel.classList.add("creamBg");
+  catHeader.innerHTML = CAT_META[cat].title;
+  catPanel.classList.remove("yellowBg","creamBg");
+  if (CAT_META[cat].bg === "yellow") catPanel.classList.add("yellowBg");
+  if (CAT_META[cat].bg === "cream")  catPanel.classList.add("creamBg");
 
-    renderCategory(cat);
-  }
+  renderCategory(cat);
+}
 
-  function showSettlement(){
-    matrixView.classList.remove("active");
-    catView.classList.remove("active");
-    settleView.classList.add("active");
-    renderSettlement();
-  }
+function showSettlement(){
+  matrixView.classList.remove("active");
+  catView.classList.remove("active");
+  settleView.classList.add("active");
+  renderSettlement();
+}
 
+/* ✅ ADD THIS RIGHT HERE */
+document.getElementById("matrixGrid").addEventListener("click", (e) => {
+  const quad = e.target.closest(".quad");
+  if (!quad) return;
+  showCategory(quad.dataset.cat); // IU/IN/NU/NN
+});
+/* ✅ END ADD */
+  
   function renderMatrix(){
     for (const cat of CATS){
       const box = document.getElementById("preview"+cat);
