@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Eisenhower Matrix (Confirm → Settle → WebAR)</title>
+  <title>Task Board (Confirm → Settle → WebAR)</title>
 
   <!-- A-Frame + MindAR -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -18,19 +18,22 @@
 
   <style>
     :root{
-      --bg:#ffffff;
-      --pink:#f7d6d9;
-      --yellow:#f6e6a8;
-      --cream:#fbf7e9;
-      --border:#1f1f1f;
-      --text:#111;
-      --muted:#666;
-      --btn:#b9ff9e;
-      --btnDisabled:#d9d9d9;
-      --btnText:#0b0b0b;
-      --danger:#ff5a5a;
-      --blue:#0b51ff;
+      --bg:#F2F2F7;
+      --card:#FFFFFF;
+      --text:#0B0B0F;
+      --muted:#6B6B73;
+      --border:rgba(0,0,0,.10);
+      --sep:rgba(0,0,0,.08);
+
+      --green:#34C759;
+      --red:#FF3B30;
+      --blue:#007AFF;
+      --orange:#FF9F0A;
+      --gray:#8E8E93;
+
+      --grayBtn:#E5E5EA;
     }
+
     *{box-sizing:border-box}
     html,body{height:100%; margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text);}
 
@@ -47,258 +50,220 @@
     .view{display:none; height:100%;}
     .view.active{display:flex; flex-direction:column; gap:12px;}
 
-    .topBar{
+    .nav{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      min-height: 28px;
+      min-height:44px;
+      padding: 0 2px;
     }
-    .textBtn{
+    .navLeft, .navRight{min-width:110px; display:flex; align-items:center; gap:10px;}
+    .navTitle{
+      font-weight:800;
+      font-size:16px;
+      letter-spacing:-0.2px;
+      text-align:center;
+      flex:1;
+    }
+    .navBtn{
       appearance:none;
       border:none;
       background:transparent;
-      padding:0;
+      padding:6px 8px;
       font: inherit;
       cursor:pointer;
-      color: var(--text);
+      color: var(--blue);
+      font-weight:700;
     }
-    .textBtn:disabled{ opacity:.4; cursor:not-allowed; }
-    .textBtn.back{ font-weight:700; color: rgba(0,0,0,.85); }
-    .textBtn.danger{ font-weight:900; color: var(--danger); }
+    .navBtn.danger{ color: var(--red); }
+    .navBtn:disabled{ opacity:.35; cursor:not-allowed; }
 
-    .matrix{
-      flex:1;
+    .card{
+      background:var(--card);
       border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.06);
+    }
+
+    /* MATRIX */
+    .matrixCard{ padding:10px; }
+    .matrix{
+      height: 360px;
       display:grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
-      gap:0;
+      gap:10px;
     }
     .quad{
+      border:1px solid var(--border);
+      border-radius:14px;
       padding:10px;
-      font-size:12px;
-      line-height:1.2;
-      position:relative;
-      overflow:hidden;
-      border-right:1px solid rgba(0,0,0,.12);
-      border-bottom:1px solid rgba(0,0,0,.12);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
       cursor:pointer;
+      background:#fff;
+      transition: transform .08s ease;
     }
-    .quad:nth-child(2), .quad:nth-child(4){ border-right:none; }
-    .quad:nth-child(3), .quad:nth-child(4){ border-bottom:none; }
-
-    .quad.pink{ background: var(--pink); }
-    .quad.yellow{ background: var(--yellow); }
-    .quad.cream{ background: var(--cream); }
-
-    .quadTitle{ font-weight:600; margin-bottom:8px; }
-    .preview{ display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+    .quad:active{ transform: scale(.99); }
+    .quadTitle{
+      font-weight:900;
+      font-size:12px;
+      line-height:1.15;
+      color: rgba(0,0,0,.88);
+    }
+    .preview{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
     .previewItem{
-      font-size:11px;
-      color: rgba(0,0,0,.75);
+      font-size:12px;
+      color: rgba(0,0,0,.70);
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.45); }
+    .previewItem.done{ text-decoration: line-through; color: rgba(0,0,0,.38); }
 
-    .bottomBar{
-      display:flex;
-      justify-content:center;
-      padding-top:6px;
-      flex-direction:column;
-      gap:10px;
-      align-items:center;
-    }
+    /* distinct category tints (NOT two reds) */
+    .quad[data-cat="IU"]{ background: rgba(255,59,48,.07); }  /* red */
+    .quad[data-cat="IN"]{ background: rgba(0,122,255,.07); }  /* blue */
+    .quad[data-cat="NU"]{ background: rgba(255,159,10,.09); } /* orange */
+    .quad[data-cat="NN"]{ background: rgba(142,142,147,.09); }/* gray */
 
     .primaryBtn{
       width: min(360px, 100%);
-      height: 56px;
+      height: 54px;
       border:none;
-      border-radius:14px;
-      background: var(--btn);
-      color: var(--btnText);
+      border-radius:16px;
+      background: var(--green);
+      color: white;
+      font-weight:900;
+      font-size:16px;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(52,199,89,.18);
+    }
+    .primaryBtn:disabled{
+      background: var(--grayBtn);
+      color: rgba(0,0,0,.35);
+      box-shadow:none;
+      cursor:not-allowed;
+    }
+    .secondaryBtn{
+      width: min(360px, 100%);
+      height: 54px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: var(--card);
+      color: var(--text);
       font-weight:900;
       font-size:16px;
       cursor:pointer;
     }
-    .primaryBtn:disabled{
-      background: var(--btnDisabled);
-      color: rgba(0,0,0,.45);
-      cursor:not-allowed;
-    }
 
-    .tinyNote{
+    .note{
       font-size:12px;
       color: var(--muted);
       text-align:center;
-      min-height:16px;
       line-height:1.25;
+      min-height: 16px;
     }
 
-    .catPanel{
-      flex:1;
-      border:1px solid var(--border);
-      display:flex;
-      flex-direction:column;
-      background: var(--pink);
-      padding: 12px;
-      position:relative;
-      overflow:hidden;
-    }
-    .catPanel.yellowBg{ background: var(--yellow); }
-    .catPanel.creamBg{ background: var(--cream); }
-
-    .catHeader{
-      font-size:22px;
-      font-weight:800;
-      line-height:1.05;
-      margin-bottom:10px;
-    }
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      overflow:auto;
-      -webkit-overflow-scrolling:touch;
-      flex:1;
-      padding-right:2px;
-    }
-
-    .swipeWrap{ position:relative; overflow:hidden; border-radius:10px; }
-    .deleteBg{
-      position:absolute;
-      inset:0;
-      background: var(--danger);
-      display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      padding-right:12px;
-      color:#fff;
-      font-weight:800;
-      pointer-events:none;
-    }
-    .row{
-      background: rgba(255,255,255,.55);
-      border: 1px solid rgba(0,0,0,.18);
-      padding: 8px 10px;
+    /* LIST (iOS cells) */
+    .listCard{ padding: 6px 0; overflow:hidden; }
+    .cell{
       display:flex;
       align-items:center;
-      justify-content:space-between;
       gap:10px;
-      transform: translateX(0px);
-      transition: transform .15s ease;
-      touch-action: pan-y;
-      border-radius:10px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--sep);
     }
-    .textBox{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-    .textView{
-      font-size:12px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      padding:2px 4px;
-    }
-    .editInput{
-      width:100%;
-      font-size:12px;
-      padding:6px 6px;
-      border:1px solid rgba(0,0,0,.25);
-      background: rgba(255,255,255,.9);
-      outline:none;
-      display:none;
-      border-radius:8px;
-    }
-
-    .rowCheck{
-      background: rgba(255,255,255,.55);
-      border: 1px solid rgba(0,0,0,.18);
-      padding: 8px 10px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      border-radius:10px;
-    }
-    .rowCheck.done .checkText{ text-decoration: line-through; color: rgba(0,0,0,.45); }
-    .checkText{
+    .cell:first-child{ border-top:none; }
+    .cellLeft{
       flex:1;
       min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .tagRow{ display:flex; align-items:center; gap:10px; }
+    .tag{
       font-size:12px;
+      font-weight:900;
+      padding: 6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      color: rgba(0,0,0,.85);
+      white-space:nowrap;
+    }
+    .tag.iu{ background: rgba(255,59,48,.10); border-color: rgba(255,59,48,.18); color: rgba(255,59,48,.95); }
+    .tag.in{ background: rgba(0,122,255,.10); border-color: rgba(0,122,255,.18); color: rgba(0,122,255,.95); }
+    .tag.nu{ background: rgba(255,159,10,.12); border-color: rgba(255,159,10,.20); color: rgba(255,159,10,.95); }
+    .tag.nn{ background: rgba(142,142,147,.12); border-color: rgba(142,142,147,.22); color: rgba(142,142,147,.95); }
+
+    .textInput{
+      width:100%;
+      border: 1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      padding:10px 10px;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+    }
+    .textInput::placeholder{ color: rgba(0,0,0,.30); }
+
+    .tinyBtn{
+      border:none;
+      background:transparent;
+      color: var(--red);
+      font-weight:800;
+      cursor:pointer;
+      padding:6px 6px;
+    }
+    .tinyBtn:disabled{ opacity:.35; cursor:not-allowed; }
+
+    .doneText{
+      font-size:14px;
+      color: rgba(0,0,0,.85);
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding:2px 4px;
+    }
+    .doneText.done{
+      text-decoration: line-through;
+      color: rgba(0,0,0,.38);
     }
 
-    .switch{ position:relative; width:38px; height:22px; flex:0 0 auto; }
+    .switch{
+      position:relative;
+      width:44px;
+      height:26px;
+      flex:0 0 auto;
+    }
     .switch input{ display:none; }
     .slider{
       position:absolute; inset:0;
-      background: rgba(255,255,255,.55);
-      border: 1px solid rgba(0,0,0,.18);
+      background: rgba(0,0,0,.10);
       border-radius:999px;
       transition:.18s;
     }
     .slider:before{
       content:"";
       position:absolute;
-      width:16px; height:16px;
-      left:3px; top:2px;
-      background:#cfcfcf;
+      width:20px; height:20px;
+      left:3px; top:3px;
+      background:#fff;
       border-radius:50%;
       transition:.18s;
+      box-shadow: 0 2px 10px rgba(0,0,0,.18);
     }
-    .switch input:checked + .slider{ background: rgba(95,215,120,.55); }
-    .switch input:checked + .slider:before{ transform: translateX(16px); background:#fff; }
-
-    .fab{
-      position:absolute;
-      left:50%;
-      bottom:64px;
-      transform: translateX(-50%);
-      width:56px;
-      height:56px;
-      border-radius:999px;
-      border:none;
-      background:#fff;
-      box-shadow: 0 6px 20px rgba(0,0,0,.18);
-      font-size:30px;
-      line-height:56px;
-      text-align:center;
-      cursor:pointer;
+    .switch input:checked + .slider{
+      background: rgba(52,199,89,.85);
     }
-    .fab:disabled{ opacity:.35; cursor:not-allowed; }
-
-    .settlePanel{
-      flex:1;
-      border:1px solid var(--border);
-      background: var(--cream);
-      padding:12px;
-      display:flex;
-      flex-direction:column;
-      overflow:hidden;
-      border-radius:10px;
-    }
-    .settleHeader{
-      font-size:20px;
-      font-weight:900;
-      line-height:1.05;
-      margin-bottom:6px;
-    }
-    .settleSub{
-      font-size:12px;
-      color: rgba(0,0,0,.62);
-      line-height:1.25;
-      margin-bottom:10px;
-    }
-    .groupTitle{
-      font-size:12px;
-      font-weight:900;
-      margin: 10px 0 6px;
-      opacity:.75;
+    .switch input:checked + .slider:before{
+      transform: translateX(18px);
     }
 
+    /* AR overlay */
     #arOverlay{
       position:fixed;
       inset:0;
@@ -306,8 +271,8 @@
       z-index:9999;
       display:none;
       color:#fff;
-      padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
-      padding-top: calc(18px + env(safe-area-inset-top));
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      padding-top: calc(16px + env(safe-area-inset-top));
     }
     #arOverlay.show{ display:flex; flex-direction:column; gap:12px; }
 
@@ -320,26 +285,58 @@
     }
     #arScene canvas{ width:100% !important; height:100% !important; }
 
+    /* Hide MindAR default overlays */
+    .mindar-ui-overlay, .mindar-ui-scanning, .mindar-ui-loading, .mindar-ui-error {
+      display:none !important;
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+
     #arHud{
       position:relative;
       z-index:1;
       display:flex;
       flex-direction:column;
-      gap:12px;
+      gap:10px;
       height:100%;
       pointer-events:none;
     }
-    .arTitle{ font-size:20px; font-weight:900; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
-    .arHint{ font-size:13px; opacity:.95; line-height:1.3; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+    .arTopRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      pointer-events:auto;
+    }
+    .arPill{
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      padding:10px 12px;
+      border-radius:14px;
+      backdrop-filter: blur(10px);
+      max-width: 75%;
+    }
+    .arTitle{ font-size:14px; font-weight:900; }
+    .arHint{ font-size:12px; opacity:.92; line-height:1.25; margin-top:4px; }
+    .arClose{
+      appearance:none;
+      border:none;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      color:#fff;
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:900;
+      cursor:pointer;
+    }
     .arSpacer{ flex:1; }
     .arDone{
-      height:44px;
+      height:48px;
       border:none;
       background:#fff;
       color: var(--blue);
       font-weight:900;
       cursor:pointer;
-      border-radius:12px;
+      border-radius:16px;
       pointer-events:auto;
     }
   </style>
@@ -347,71 +344,98 @@
 
 <body>
   <div class="app">
+
     <!-- MATRIX VIEW -->
     <section id="matrixView" class="view active">
-      <div class="topBar">
-        <div></div>
-        <button id="newRoundBtnTop" class="textBtn danger" style="display:none;">New Round</button>
-      </div>
-
-      <div class="matrix" id="matrixGrid">
-        <div class="quad pink" data-cat="IU">
-          <div class="quadTitle">Urgent,<br>Important</div>
-          <div class="preview" id="previewIU"></div>
-        </div>
-        <div class="quad pink" data-cat="IN">
-          <div class="quadTitle">Not Urgent,<br>Important</div>
-          <div class="preview" id="previewIN"></div>
-        </div>
-        <div class="quad yellow" data-cat="NU">
-          <div class="quadTitle">Urgent,<br>Not Important</div>
-          <div class="preview" id="previewNU"></div>
-        </div>
-        <div class="quad cream" data-cat="NN">
-          <div class="quadTitle">Not Urgent,<br>Not Important</div>
-          <div class="preview" id="previewNN"></div>
+      <div class="nav">
+        <div class="navLeft"></div>
+        <div class="navTitle">Task Board</div>
+        <div class="navRight">
+          <button id="newRoundBtnTop" class="navBtn danger" style="display:none;">New Round</button>
         </div>
       </div>
 
-      <div class="bottomBar">
+      <div class="card matrixCard">
+        <div class="matrix" id="matrixGrid">
+          <div class="quad" data-cat="IU">
+            <div class="quadTitle">Urgent,<br>Important</div>
+            <div class="preview" id="previewIU"></div>
+          </div>
+          <div class="quad" data-cat="IN">
+            <div class="quadTitle">Not Urgent,<br>Important</div>
+            <div class="preview" id="previewIN"></div>
+          </div>
+          <div class="quad" data-cat="NU">
+            <div class="quadTitle">Urgent,<br>Not Important</div>
+            <div class="preview" id="previewNU"></div>
+          </div>
+          <div class="quad" data-cat="NN">
+            <div class="quadTitle">Not Urgent,<br>Not Important</div>
+            <div class="preview" id="previewNN"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
         <button id="mainBtn" class="primaryBtn" disabled>Confirm</button>
+        <div class="note" id="mainNote"></div>
       </div>
-
-      <div class="tinyNote" id="mainNote"></div>
     </section>
 
     <!-- CATEGORY VIEW -->
     <section id="catView" class="view">
-      <div class="topBar">
-        <button id="backBtn" class="textBtn back">← Back</button>
-        <div></div>
+      <div class="nav">
+        <div class="navLeft">
+          <button id="backBtn" class="navBtn">← Back</button>
+        </div>
+        <div class="navTitle" id="catNavTitle">Category</div>
+        <div class="navRight"></div>
       </div>
 
-      <div id="catPanel" class="catPanel">
-        <div class="catHeader" id="catHeader">Urgent,<br>Important</div>
-        <div class="list" id="catList"></div>
-        <button id="fabAdd" class="fab" title="Add">+</button>
+      <div class="card" style="padding:14px;">
+        <div class="tagRow" style="margin-bottom:10px;">
+          <span class="tag iu" id="catTag">Urgent, Important</span>
+        </div>
+
+        <div class="card listCard">
+          <div id="catList"></div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <button id="addBtn" class="secondaryBtn" style="height:48px;">Add</button>
+        </div>
+
+        <div class="note" style="margin-top:10px;" id="catNote"></div>
       </div>
     </section>
 
     <!-- SETTLEMENT VIEW -->
     <section id="settleView" class="view">
-      <div class="topBar">
-        <button id="settleBackBtn" class="textBtn back">← Back</button>
-        <button id="settleNewRoundText" class="textBtn danger" style="display:none;">New Round</button>
+      <div class="nav">
+        <div class="navLeft">
+          <button id="settleBackBtn" class="navBtn">← Back</button>
+        </div>
+        <div class="navTitle">Settlement</div>
+        <div class="navRight">
+          <button id="settleNewRoundText" class="navBtn danger" style="display:none;">New Round</button>
+        </div>
       </div>
 
-      <div class="settlePanel">
-        <div class="settleHeader">Settlement</div>
-        <div class="settleSub" id="settleNote">Mark done → AR.</div>
-        <div class="list" id="settleList"></div>
-      </div>
+      <div class="card" style="padding:14px;">
+        <div style="font-weight:900; font-size:18px;">Mark done</div>
+        <div class="note" id="settleNote" style="text-align:left; margin-top:6px;">Toggle completed tasks, then view AR.</div>
 
-      <div class="bottomBar">
-        <button id="settleGoBtn" class="primaryBtn">View AR</button>
-        <button id="settleRewatchBtn" class="primaryBtn" style="display:none;">Rewatch AR</button>
+        <div class="card listCard" style="margin-top:12px;">
+          <div id="settleList"></div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px; align-items:center;">
+          <button id="settleGoBtn" class="primaryBtn">View AR</button>
+          <button id="settleRewatchBtn" class="secondaryBtn" style="display:none;">Rewatch AR</button>
+        </div>
       </div>
     </section>
+
   </div>
 
   <!-- WebAR Overlay -->
@@ -419,7 +443,7 @@
     <div id="arSceneWrap">
       <a-scene
         id="arScene"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: false; uiLoading: false; uiError: false;"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
         renderer="colorManagement: true, physicallyCorrectLights: true"
@@ -437,8 +461,13 @@
     </div>
 
     <div id="arHud">
-      <div class="arTitle">AR</div>
-      <div class="arHint" id="arHint">Point at target.</div>
+      <div class="arTopRow">
+        <div class="arPill">
+          <div class="arTitle" id="arTitle">AR</div>
+          <div class="arHint" id="arHint">Point at target.</div>
+        </div>
+        <button id="arCloseBtn" class="arClose">×</button>
+      </div>
       <div class="arSpacer"></div>
       <button id="arDoneBtn" class="arDone">Done</button>
     </div>
@@ -446,11 +475,11 @@
 
 <script>
   /***********************
-   * MQTT (Web -> HiveMQ Cloud -> ESP32)
+   * MQTT
    ***********************/
   const MQTT_URL  = "wss://e322388267ac40b5a94526e5483de320.s1.eu.hivemq.cloud:8884/mqtt";
-  const MQTT_USER = "arvase"; // <-- fill from HiveMQ Access Management
-  const MQTT_PASS = "Ar123456"; // <-- fill from HiveMQ Access Management
+  const MQTT_USER = "arvase";
+  const MQTT_PASS = "Ar123456";
   const TOPIC_CMD = "vase/cmd";
 
   let mqttClient = null;
@@ -484,7 +513,7 @@
   }
 
   /***********************
-   * Storage + Modes
+   * State
    ***********************/
   const STORAGE_KEY = "eisen_matrix_v4_state";
   const MODE_KEY    = "eisen_matrix_v4_mode";
@@ -495,10 +524,10 @@
 
   const CATS = ["IU","IN","NU","NN"];
   const CAT_META = {
-    IU: { title: "Urgent,<br>Important", bg: "pink" },
-    IN: { title: "Not Urgent,<br>Important", bg: "pink" },
-    NU: { title: "Urgent,<br>Not Important", bg: "yellow" },
-    NN: { title: "Not Urgent,<br>Not Important", bg: "cream" }
+    IU: { title: "Urgent, Important", tagClass: "iu" },
+    IN: { title: "Not Urgent, Important", tagClass: "in" },
+    NU: { title: "Urgent, Not Important", tagClass: "nu" },
+    NN: { title: "Not Urgent, Not Important", tagClass: "nn" }
   };
 
   let state = loadState();
@@ -573,11 +602,6 @@
     return total ? (completedCount()/total) : 0;
   }
 
-  /***********************
-   * Outcome logic
-   * - only NN -> chill
-   * - else >=2/3 -> celebrate, otherwise -> fall (1/3~2/3 counted as fall)
-   ***********************/
   function computeOutcomeAndCount(){
     const total = totalTasks();
     const done = completedCount();
@@ -601,7 +625,6 @@
     return { outcome, nBalls, total, done, undone, ratio, only2 };
   }
 
-  // Rotation mapping: fall 180, chill 60, celebrate 120
   function rotationDegForOutcome(outcome){
     if (outcome === "fall") return 180;
     if (outcome === "chill") return 60;
@@ -609,7 +632,7 @@
   }
 
   /***********************
-   * AR balls generator
+   * AR balls
    ***********************/
   const ballRoot = document.getElementById("ballRoot");
   function clearBalls(){
@@ -633,18 +656,15 @@
     const baseY = rand(-0.05, 0.08);
     s.setAttribute("position", `${x.toFixed(3)} ${baseY.toFixed(3)} ${z.toFixed(3)}`);
 
-    const jump = rand(0.08, 0.18);
+    const jump = rand(0.10, 0.22);
     const dur1 = randInt(700, 1200);
-    const delay = randInt(0, 600);
+    const delay = randInt(0, 500);
     s.setAttribute("animation__jump",
       `property: position; dir: alternate; dur: ${dur1}; delay: ${delay}; loop: true; easing: easeInOutSine; to: ${x.toFixed(3)} ${(baseY+jump).toFixed(3)} ${z.toFixed(3)}`);
 
     const dur2 = randInt(900, 1600);
-    const rotA = rand(-18, 18);
-    const rotB = -rotA;
-    s.setAttribute("rotation", `0 0 ${rotA.toFixed(1)}`);
     s.setAttribute("animation__rock",
-      `property: rotation; dir: alternate; dur: ${dur2}; delay: ${delay}; loop: true; easing: easeInOutSine; to: 0 0 ${rotB.toFixed(1)}`);
+      `property: rotation; dir: alternate; dur: ${dur2}; delay: ${delay}; loop: true; easing: easeInOutSine; to: ${rand(-12,12).toFixed(1)} ${rand(-25,25).toFixed(1)} ${rand(-12,12).toFixed(1)}`);
 
     return s;
   }
@@ -656,28 +676,21 @@
 
     const x = rand(-0.22, 0.22);
     const z = rand(0.06, 0.30);
-    const startY = rand(0.18, 0.45);
-    const endY = rand(-0.45, -0.25);
-
+    const startY = rand(0.20, 0.50);
+    const endY = rand(-0.55, -0.30);
     s.setAttribute("position", `${x.toFixed(3)} ${startY.toFixed(3)} ${z.toFixed(3)}`);
 
     const dur = randInt(700, 1400);
     const delay = randInt(0, 700);
 
     s.setAttribute("animation__fall",
-      `property: position; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInQuad; to: ${(x + rand(-0.05,0.05)).toFixed(3)} ${endY.toFixed(3)} ${(z + rand(-0.03,0.03)).toFixed(3)}`);
-
-    const spinDur = randInt(900, 1600);
-    s.setAttribute("animation__spin",
-      `property: rotation; dur: ${spinDur}; delay: ${delay}; loop: true; easing: linear; to: ${randInt(180, 540)} ${randInt(180, 540)} ${randInt(180, 540)}`);
+      `property: position; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInQuad; to: ${(x + rand(-0.06,0.06)).toFixed(3)} ${endY.toFixed(3)} ${(z + rand(-0.04,0.04)).toFixed(3)}`);
 
     s.addEventListener("animationcomplete__fall", () => {
       const nx = rand(-0.22, 0.22);
       const nz = rand(0.06, 0.30);
-      const ny = rand(0.18, 0.45);
+      const ny = rand(0.20, 0.50);
       s.setAttribute("position", `${nx.toFixed(3)} ${ny.toFixed(3)} ${nz.toFixed(3)}`);
-      s.setAttribute("animation__fall",
-        `property: position; dur: ${dur}; delay: ${delay}; loop: true; easing: easeInQuad; to: ${(nx + rand(-0.05,0.05)).toFixed(3)} ${endY.toFixed(3)} ${(nz + rand(-0.03,0.03)).toFixed(3)}`);
     });
 
     return s;
@@ -685,50 +698,31 @@
 
   function addBallChill(){
     const wrap = document.createElement("a-entity");
-
     const x0 = rand(-0.18, 0.18);
     const z0 = rand(0.07, 0.28);
     wrap.setAttribute("position", `${x0.toFixed(3)} 0 ${z0.toFixed(3)}`);
 
-    const dx = rand(0.08, 0.16) * (Math.random()<0.5?-1:1);
-    const dz = rand(0.06, 0.14) * (Math.random()<0.5?-1:1);
+    const dx = rand(0.10, 0.18) * (Math.random()<0.5?-1:1);
+    const dz = rand(0.08, 0.16) * (Math.random()<0.5?-1:1);
     const swayDur = randInt(1800, 3200);
     const delay = randInt(0, 800);
 
-    wrap.setAttribute(
-      "animation__sway",
+    wrap.setAttribute("animation__sway",
       `property: position; dir: alternate; dur: ${swayDur}; delay: ${delay}; loop: true; easing: easeInOutSine;
-       to: ${(x0+dx).toFixed(3)} 0 ${(z0+dz).toFixed(3)}`
-    );
-
-    const tiltDur = randInt(2200, 3600);
-    wrap.setAttribute(
-      "animation__tilt",
-      `property: rotation; dir: alternate; dur: ${tiltDur}; delay: ${delay}; loop: true; easing: easeInOutSine;
-       to: ${rand(-12,12).toFixed(1)} ${rand(-22,22).toFixed(1)} ${rand(-12,12).toFixed(1)}`
-    );
+       to: ${(x0+dx).toFixed(3)} 0 ${(z0+dz).toFixed(3)}`);
 
     const s = document.createElement("a-sphere");
     s.setAttribute("radius", rand(0.038, 0.055).toFixed(3));
     s.setAttribute("material", `color: #7fffe2; metalness: 0.85; roughness: 0.25`);
 
     const y0 = rand(-0.02, 0.14);
-    const dy = rand(0.06, 0.14);
+    const dy = rand(0.08, 0.16);
     s.setAttribute("position", `0 ${y0.toFixed(3)} 0`);
 
-    const bobDur = randInt(1400, 2400);
-    s.setAttribute(
-      "animation__bob",
+    const bobDur = randInt(1500, 2600);
+    s.setAttribute("animation__bob",
       `property: position; dir: alternate; dur: ${bobDur}; delay: ${delay}; loop: true; easing: easeInOutSine;
-       to: 0 ${(y0+dy).toFixed(3)} 0`
-    );
-
-    const spinDur = randInt(2500, 4500);
-    s.setAttribute(
-      "animation__spin",
-      `property: rotation; dur: ${spinDur}; delay: ${delay}; loop: true; easing: linear;
-       to: ${randInt(0, 40)} 360 ${randInt(0, 40)}`
-    );
+       to: 0 ${(y0+dy).toFixed(3)} 0`);
 
     wrap.appendChild(s);
     return wrap;
@@ -736,8 +730,6 @@
 
   function buildARVisual(snapshot){
     clearBalls();
-    if (!ballRoot) return;
-
     for (let i=0; i<snapshot.nBalls; i++){
       let ball;
       if (snapshot.outcome === "celebrate") ball = addBallCelebrate();
@@ -748,28 +740,29 @@
   }
 
   /***********************
-   * View switching + rendering
+   * Views
    ***********************/
   const matrixView = document.getElementById("matrixView");
   const catView    = document.getElementById("catView");
   const settleView = document.getElementById("settleView");
 
-  const catHeader  = document.getElementById("catHeader");
-  const catList    = document.getElementById("catList");
-  const catPanel   = document.getElementById("catPanel");
-  const fabAdd     = document.getElementById("fabAdd");
-
-  const backBtn     = document.getElementById("backBtn");
-  const mainBtn     = document.getElementById("mainBtn");
-  const mainNote    = document.getElementById("mainNote");
+  const mainBtn   = document.getElementById("mainBtn");
+  const mainNote  = document.getElementById("mainNote");
   const newRoundBtnTop = document.getElementById("newRoundBtnTop");
 
-  const settleList    = document.getElementById("settleList");
-  const settleNote    = document.getElementById("settleNote");
+  const backBtn   = document.getElementById("backBtn");
+  const catNavTitle = document.getElementById("catNavTitle");
+  const catTag = document.getElementById("catTag");
+  const catList = document.getElementById("catList");
+  const addBtn  = document.getElementById("addBtn");
+  const catNote = document.getElementById("catNote");
+
   const settleBackBtn = document.getElementById("settleBackBtn");
-  const settleGoBtn   = document.getElementById("settleGoBtn");
-  const settleRewatchBtn = document.getElementById("settleRewatchBtn");
   const settleNewRoundText = document.getElementById("settleNewRoundText");
+  const settleList = document.getElementById("settleList");
+  const settleNote = document.getElementById("settleNote");
+  const settleGoBtn = document.getElementById("settleGoBtn");
+  const settleRewatchBtn = document.getElementById("settleRewatchBtn");
 
   function showMatrix(){
     currentCat = null;
@@ -780,34 +773,37 @@
   }
 
   function showCategory(cat){
-  currentCat = cat;
-  matrixView.classList.remove("active");
-  settleView.classList.remove("active");
-  catView.classList.add("active");
+    currentCat = cat;
+    matrixView.classList.remove("active");
+    settleView.classList.remove("active");
+    catView.classList.add("active");
 
-  catHeader.innerHTML = CAT_META[cat].title;
-  catPanel.classList.remove("yellowBg","creamBg");
-  if (CAT_META[cat].bg === "yellow") catPanel.classList.add("yellowBg");
-  if (CAT_META[cat].bg === "cream")  catPanel.classList.add("creamBg");
+    const meta = CAT_META[cat];
+    catNavTitle.textContent = meta.title;
 
-  renderCategory(cat);
-}
+    catTag.classList.remove("iu","in","nu","nn");
+    catTag.classList.add(meta.tagClass);
+    catTag.textContent = meta.title;
 
-function showSettlement(){
-  matrixView.classList.remove("active");
-  catView.classList.remove("active");
-  settleView.classList.add("active");
-  renderSettlement();
-}
+    renderCategory(cat);
+  }
 
-/* ✅ ADD THIS RIGHT HERE */
-document.getElementById("matrixGrid").addEventListener("click", (e) => {
-  const quad = e.target.closest(".quad");
-  if (!quad) return;
-  showCategory(quad.dataset.cat); // IU/IN/NU/NN
-});
-/* ✅ END ADD */
-  
+  function showSettlement(){
+    matrixView.classList.remove("active");
+    catView.classList.remove("active");
+    settleView.classList.add("active");
+    renderSettlement();
+  }
+
+  document.getElementById("matrixGrid").addEventListener("click", (e) => {
+    const quad = e.target.closest(".quad");
+    if (!quad) return;
+    showCategory(quad.dataset.cat);
+  });
+
+  backBtn.addEventListener("click", showMatrix);
+  settleBackBtn.addEventListener("click", showMatrix);
+
   function renderMatrix(){
     for (const cat of CATS){
       const box = document.getElementById("preview"+cat);
@@ -826,7 +822,7 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
       const canConfirm = totalTasks() > 0;
       mainBtn.textContent = "Confirm";
       mainBtn.disabled = !canConfirm;
-      mainNote.textContent = canConfirm ? `Max ${MAX_PER_CAT}/cat.` : "Add 1+ todo.";
+      mainNote.textContent = canConfirm ? `Max ${MAX_PER_CAT} per category.` : "Add 1+ todo.";
     } else {
       const settled = isRoundSettled();
       const hasTasks = totalTasks() > 0;
@@ -841,81 +837,68 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
 
   function renderCategory(cat){
     catList.innerHTML = "";
+    const items = state[cat];
 
     if (mode === MODE.PLAN){
-      fabAdd.style.display = "block";
-      fabAdd.disabled = state[cat].length >= MAX_PER_CAT;
+      addBtn.disabled = items.length >= MAX_PER_CAT;
+      catNote.textContent = items.length >= MAX_PER_CAT ? "Limit reached." : "";
 
-      for (const task of state[cat]){
-        const wrap = document.createElement("div");
-        wrap.className = "swipeWrap";
-
-        const delBg = document.createElement("div");
-        delBg.className = "deleteBg";
-        delBg.textContent = "Delete";
-        wrap.appendChild(delBg);
-
+      items.forEach((task) => {
         const row = document.createElement("div");
-        row.className = "row";
-        row.dataset.id = task.id;
+        row.className = "cell";
 
-        const textBox = document.createElement("div");
-        textBox.className = "textBox";
+        const left = document.createElement("div");
+        left.className = "cellLeft";
 
-        const textView = document.createElement("div");
-        textView.className = "textView";
-        textView.textContent = task.text || "tap to edit";
-
-        const edit = document.createElement("input");
-        edit.className = "editInput";
-        edit.type = "text";
-        edit.value = task.text || "";
-
-        textView.addEventListener("click", () => {
-          textView.style.display = "none";
-          edit.style.display = "block";
-          edit.focus();
-          edit.setSelectionRange(edit.value.length, edit.value.length);
+        const input = document.createElement("input");
+        input.className = "textInput";
+        input.placeholder = "Todo";
+        input.value = task.text || "";
+        input.addEventListener("input", () => {
+          task.text = input.value;
+          saveState();
+          renderMatrix();
         });
 
-        function commitEdit(){
-          const v = edit.value.trim();
-          task.text = v;
-          textView.textContent = v || "tap to edit";
-          edit.style.display = "none";
-          textView.style.display = "block";
-          persistAndRerender(cat);
-        }
-        edit.addEventListener("keydown", (e) => { if (e.key === "Enter") edit.blur(); });
-        edit.addEventListener("blur", commitEdit);
+        left.appendChild(input);
 
-        textBox.appendChild(textView);
-        textBox.appendChild(edit);
-
-        row.appendChild(textBox);
-        wrap.appendChild(row);
-        catList.appendChild(wrap);
-
-        attachSwipeToDelete(row, () => {
+        const del = document.createElement("button");
+        del.className = "tinyBtn";
+        del.textContent = "Delete";
+        del.addEventListener("click", () => {
           state[cat] = state[cat].filter(t => t.id !== task.id);
-          persistAndRerender(cat);
+          saveState();
+          renderCategory(cat);
+          renderMatrix();
         });
-      }
-    } else {
-      fabAdd.style.display = "none";
-      for (const task of state[cat]){
-        const row = document.createElement("div");
-        row.className = "rowCheck" + (task.done ? " done" : "");
-        const text = document.createElement("div");
-        text.className = "checkText";
-        text.textContent = task.text || "(empty)";
-        row.appendChild(text);
+
+        row.appendChild(left);
+        row.appendChild(del);
         catList.appendChild(row);
-      }
+      });
+    } else {
+      addBtn.disabled = true;
+      catNote.textContent = "Locked.";
+
+      items.forEach((task) => {
+        const row = document.createElement("div");
+        row.className = "cell";
+
+        const left = document.createElement("div");
+        left.className = "cellLeft";
+
+        const txt = document.createElement("div");
+        txt.className = "doneText" + (task.done ? " done" : "");
+        txt.textContent = task.text || "(empty)";
+        left.appendChild(txt);
+
+        row.appendChild(left);
+        catList.appendChild(row);
+      });
     }
   }
 
-  fabAdd.addEventListener("click", () => {
+  addBtn.addEventListener("click", () => {
     if (mode !== MODE.PLAN) return;
     if (!currentCat) return;
     if (state[currentCat].length >= MAX_PER_CAT) return;
@@ -923,65 +906,17 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
     state[currentCat].push({ id: cryptoId(), text: "", done: false });
     saveState();
     renderCategory(currentCat);
+    renderMatrix();
 
     requestAnimationFrame(() => {
-      const lastRow = catList.querySelector(".row:last-child");
-      if (!lastRow) return;
-      const tv = lastRow.querySelector(".textView");
-      tv && tv.click();
+      const inputs = catList.querySelectorAll("input.textInput");
+      const last = inputs[inputs.length - 1];
+      last && last.focus();
     });
-
-    renderMatrix();
   });
-
-  function persistAndRerender(cat){
-    saveState();
-    renderCategory(cat);
-    renderMatrix();
-  }
-
-  function attachSwipeToDelete(rowEl, onDelete){
-    let startX = 0;
-    let currentX = 0;
-    let dragging = false;
-
-    rowEl.addEventListener("pointerdown", (e) => {
-      if (mode !== MODE.PLAN) return;
-      if (e.target.closest(".editInput")) return;
-      dragging = true;
-      startX = e.clientX;
-      currentX = 0;
-      rowEl.style.transition = "none";
-      rowEl.setPointerCapture(e.pointerId);
-    });
-
-    rowEl.addEventListener("pointermove", (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - startX;
-      currentX = Math.max(-120, Math.min(0, dx));
-      rowEl.style.transform = `translateX(${currentX}px)`;
-    });
-
-    rowEl.addEventListener("pointerup", () => finishSwipe());
-    rowEl.addEventListener("pointercancel", () => finishSwipe());
-
-    function finishSwipe(){
-      if (!dragging) return;
-      dragging = false;
-      rowEl.style.transition = "transform .15s ease";
-
-      if (currentX < -80){
-        rowEl.style.transform = "translateX(-120px)";
-        setTimeout(() => onDelete(), 120);
-      } else {
-        rowEl.style.transform = "translateX(0px)";
-      }
-    }
-  }
 
   function renderSettlement(){
     settleList.innerHTML = "";
-
     const settled = isRoundSettled();
 
     settleGoBtn.style.display = settled ? "none" : "inline-block";
@@ -993,30 +928,47 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
 
     if (!settled) {
       const snap = computeOutcomeAndCount();
-      const nice = snap.outcome[0].toUpperCase() + snap.outcome.slice(1);
-      settleNote.textContent = `Outcome: ${nice}.`;
+      settleNote.textContent = `Outcome preview: ${snap.outcome}.`;
     } else {
-      const label = (round?.snapshot?.outcome || "fall");
-      const nice = label[0].toUpperCase() + label.slice(1);
-      settleNote.textContent = `Settled: ${nice}. Rewatch or New Round.`;
+      settleNote.textContent = `Settled: ${round?.snapshot?.outcome || "fall"}.`;
     }
 
     for (const cat of CATS){
       const tasks = state[cat];
       if (!tasks.length) continue;
 
-      const title = document.createElement("div");
-      title.className = "groupTitle";
-      title.innerHTML = CAT_META[cat].title.replace("<br>", " ");
-      settleList.appendChild(title);
+      const header = document.createElement("div");
+      header.className = "cell";
+      header.style.background = "rgba(0,0,0,.02)";
 
-      for (const task of tasks){
+      const leftH = document.createElement("div");
+      leftH.className = "cellLeft";
+
+      const meta = CAT_META[cat];
+
+      const tagRow = document.createElement("div");
+      tagRow.className = "tagRow";
+
+      const tag = document.createElement("span");
+      tag.className = "tag " + meta.tagClass;
+      tag.textContent = meta.title;
+
+      tagRow.appendChild(tag);
+      leftH.appendChild(tagRow);
+      header.appendChild(leftH);
+      settleList.appendChild(header);
+
+      tasks.forEach((task) => {
         const row = document.createElement("div");
-        row.className = "rowCheck" + (task.done ? " done" : "");
+        row.className = "cell";
 
-        const text = document.createElement("div");
-        text.className = "checkText";
-        text.textContent = task.text || "(empty)";
+        const left = document.createElement("div");
+        left.className = "cellLeft";
+
+        const txt = document.createElement("div");
+        txt.className = "doneText" + (task.done ? " done" : "");
+        txt.textContent = task.text || "(empty)";
+        left.appendChild(txt);
 
         const sw = document.createElement("label");
         sw.className = "switch";
@@ -1031,6 +983,7 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
           saveState();
           renderSettlement();
           renderMatrix();
+          if (currentCat) renderCategory(currentCat);
         });
 
         const slider = document.createElement("span");
@@ -1038,36 +991,68 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
         sw.appendChild(cb);
         sw.appendChild(slider);
 
-        row.appendChild(text);
+        row.appendChild(left);
         row.appendChild(sw);
         settleList.appendChild(row);
-      }
+      });
     }
   }
 
+  mainBtn.addEventListener("click", () => {
+    if (mode === MODE.PLAN){
+      if (totalTasks() === 0) return;
+      for (const c of CATS) for (const t of state[c]) t.done = false;
+
+      mode = MODE.CHECK;
+      startRound();
+      saveMode();
+      saveState();
+      showMatrix();
+      return;
+    }
+
+    if (isRoundSettled()) return;
+    if (totalTasks() === 0) return;
+    showSettlement();
+  });
+
+  function startNewRoundFromAnywhere(){
+    if (!confirm("Start a new round?")) return;
+
+    closeAR(true);
+    state = { IU:[], IN:[], NU:[], NN:[] };
+    mode = MODE.PLAN;
+    saveMode();
+    saveState();
+    clearRound();
+    showMatrix();
+  }
+  newRoundBtnTop.addEventListener("click", startNewRoundFromAnywhere);
+  settleNewRoundText.addEventListener("click", startNewRoundFromAnywhere);
+
   /***********************
-   * WebAR start/stop
+   * WebAR
    ***********************/
   const arOverlay = document.getElementById("arOverlay");
   const arDoneBtn = document.getElementById("arDoneBtn");
+  const arCloseBtn = document.getElementById("arCloseBtn");
   const arHint    = document.getElementById("arHint");
+  const arTitle   = document.getElementById("arTitle");
   const arScene   = document.getElementById("arScene");
   const arTarget0 = document.getElementById("arTarget0");
 
-  async function startARWithSnapshot(snapshot){
-    if (!arScene) return;
-
+  async function openAR(snapshot){
     buildARVisual(snapshot);
-    const nice = snapshot.outcome[0].toUpperCase() + snapshot.outcome.slice(1);
-    arHint.textContent = `${nice}. Point at target.`;
+    arTitle.textContent = `AR · ${snapshot.outcome}`;
+    arHint.textContent = "Point at target.";
 
+    arOverlay.classList.add("show");
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try { arScene.play && arScene.play(); } catch {}
     const sys = arScene.systems && arScene.systems["mindar-image-system"];
     if (!sys){
       arHint.textContent = "AR init failed.";
-      console.error("AR init failed: mindar-image-system missing.");
       return;
     }
 
@@ -1080,60 +1065,28 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
     }
   }
 
-  function stopAR(){
+  async function stopAR(){
     try{
       const sys = arScene.systems && arScene.systems["mindar-image-system"];
-      sys && sys.stop();
-    }catch{}
+      if (sys) await sys.stop();
+    }catch(e){}
+    try { arScene.pause && arScene.pause(); } catch {}
+  }
+
+  async function closeAR(silent=false){
+    await stopAR();
+    arOverlay.classList.remove("show");
+    if (!silent) showSettlement();
   }
 
   if (arTarget0){
-    arTarget0.addEventListener("targetFound", () => {
-      if (!arHint.textContent.includes("Found")) arHint.textContent = arHint.textContent.replace("Point at target.", "Found ✅");
-    });
-    arTarget0.addEventListener("targetLost",  () => {
-      const t = arHint.textContent;
-      if (t.includes("Found")) arHint.textContent = t.replace("Found ✅", "Point at target.");
-    });
+    arTarget0.addEventListener("targetFound", () => { arHint.textContent = "Found ✅"; });
+    arTarget0.addEventListener("targetLost",  () => { arHint.textContent = "Point at target."; });
   }
 
-  /***********************
-   * Buttons + Flow
-   ***********************/
-  mainBtn.addEventListener("click", () => {
-    if (mode === MODE.PLAN){
-      if (totalTasks() === 0) return;
-      for (const c of CATS) for (const t of state[c]) t.done = false;
-      mode = MODE.CHECK;
-      startRound();
-      saveMode();
-      saveState();
-      showMatrix();
-      return;
-    }
-    if (isRoundSettled()) return;
-    if (totalTasks() === 0) return;
-    showSettlement();
-  });
+  arDoneBtn.addEventListener("click", () => closeAR(false));
+  arCloseBtn.addEventListener("click", () => closeAR(false));
 
-  function startNewRoundFromAnywhere(){
-    if (!confirm("Start a new round?")) return;
-
-    try { stopAR(); } catch {}
-    try { arOverlay.classList.remove("show"); } catch {}
-
-    state = { IU:[], IN:[], NU:[], NN:[] };
-    mode = MODE.PLAN;
-    saveMode();
-    saveState();
-    clearRound();
-    showMatrix();
-  }
-
-  newRoundBtnTop.addEventListener("click", startNewRoundFromAnywhere);
-  settleNewRoundText.addEventListener("click", startNewRoundFromAnywhere);
-
-  // Finalize settlement once -> rotate vase (based on outcome) -> open AR
   settleGoBtn.addEventListener("click", async () => {
     if (isRoundSettled()) return;
     if (totalTasks() === 0) return;
@@ -1141,12 +1094,9 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
     const snap = computeOutcomeAndCount();
     settleRound(snap);
 
-    // Rotate ONCE per round (rewatch won't rotate)
     rotateVaseRel(rotationDegForOutcome(round.snapshot.outcome));
 
-    arOverlay.classList.add("show");
-    await startARWithSnapshot(round.snapshot);
-
+    await openAR(round.snapshot);
     renderSettlement();
     renderMatrix();
   });
@@ -1154,19 +1104,8 @@ document.getElementById("matrixGrid").addEventListener("click", (e) => {
   settleRewatchBtn.addEventListener("click", async () => {
     if (!isRoundSettled()) return;
     if (!round?.snapshot) return;
-
-    arOverlay.classList.add("show");
-    await startARWithSnapshot(round.snapshot);
+    await openAR(round.snapshot);
   });
-
-  arDoneBtn.addEventListener("click", () => {
-    stopAR();
-    arOverlay.classList.remove("show");
-    showSettlement();
-  });
-
-  backBtn.addEventListener("click", showMatrix);
-  settleBackBtn.addEventListener("click", showMatrix);
 
   showMatrix();
 </script>
